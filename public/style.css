@@ -1,0 +1,166 @@
+/* Reset básico */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    background-color: #222;
+    overflow: hidden;
+}
+
+/* --- TELA DE LOGIN --- */
+#tela-login {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000; /* Fica por cima de tudo */
+}
+
+.login-caixa {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+
+.login-caixa h1 {
+    margin-bottom: 20px;
+    color: #8B4513; /* Marrom capivara */
+}
+
+#nickname-input {
+    padding: 10px;
+    width: 80%;
+    margin-bottom: 15px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+    text-align: center;
+    outline: none;
+}
+
+#btn-entrar {
+    padding: 10px 20px;
+    background-color: #8B4513;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+#btn-entrar:hover {
+    background-color: #A0522D;
+}
+
+/* --- JOGO --- */
+#jogo-container {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    background-color: #87CEEB; /* Cor do céu temporária */
+}
+
+#cenario-fundo {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    /* Coloque a imagem da sua cidade principal aqui depois */
+    /* background-image: url('cidade-principal.jpg'); */
+    background-size: cover;
+    background-position: center;
+    z-index: 1;
+}
+
+/* --- JOGADOR (CAPIVARA) --- */
+#jogador {
+    width: 100px;
+    height: 100px;
+    /*background-color: #8B4513; /* Quadrado marrom representando a capivara */
+    background-image: url('./capivara.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    position: absolute;
+    z-index: 10;
+    transition: top 1s linear, left 1s linear;
+    pointer-events: none;
+    display: none; /* Escondido até fazer login */
+}
+
+#nome-jogador {
+    position: absolute;
+    top: 110%; /* Fica embaixo do personagem */
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    background-color: rgba(0,0,0,0.5);
+    padding: 2px 6px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* --- CHAT EM CIMA DA CABEÇA --- */
+.balao {
+    position: absolute;
+    bottom: 115%; /* Fica acima da cabeça */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    color: black;
+    padding: 8px 12px;
+    border-radius: 15px;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+    border: 2px solid #ccc;
+    box-shadow: 0px 4px 6px rgba(0,0,0,0.3);
+    display: none; /* Escondido por padrão */
+}
+
+/* Pontinha do balão */
+.balao::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -6px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: white transparent transparent transparent;
+}
+
+/* --- BARRA DE CHAT INFERIOR --- */
+#chat-ui {
+    position: fixed;
+    bottom: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    z-index: 100;
+    display: none; /* Escondido até fazer login */
+}
+
+#chat-input {
+    width: 400px;
+    padding: 12px;
+    border-radius: 20px;
+    border: 2px solid #8B4513;
+    font-size: 16px;
+    outline: none;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}

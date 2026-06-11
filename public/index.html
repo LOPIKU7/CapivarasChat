@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CapivarasChat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="tela-login">
+        <div class="login-caixa">
+            <h1>CapivarasChat 🐾</h1>
+            <input type="text" id="nickname-input" value="lopiku7" placeholder="Digite seu Nickname" maxlength="15" autocomplete="off">
+            <button id="btn-entrar">Entrar na Cidade</button>
+        </div>
+    </div>
+
+    <div id="jogo-container">
+        <div id="cenario-fundo"></div>
+        
+        <div id="jogador">
+            <div id="balao-chat" class="balao"></div>
+            <div id="nome-jogador"></div>
+        </div>
+    </div>
+
+    <div id="chat-ui">
+        <input type="text" id="chat-input" maxlength="30" placeholder="Fale algo (Máx 30 letras)..." autocomplete="off">
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

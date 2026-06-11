@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -7,8 +8,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // Define que a pasta 'public' é o frontend do jogo
-app.use(express.static('public'));
-
+app.use(express.static(path.join(__dirname, 'public')));
 // Sistema do Multiplayer
 io.on('connection', (socket) => {
     console.log(`Uma capivara se conectou! ID: ${socket.id}`);

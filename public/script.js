@@ -123,20 +123,17 @@ socket.on('jogadorDesconectou', (id) => {
 
 // --- FUNÇÕES AUXILIARES ---
 
-// Cria visualmente a capivara de outro jogador na sua tela
 function criarOutraCapivara(dados) {
     if (outrasCapivaras[dados.id]) return; // Evita duplicar
 
-    // Cria a estrutura idêntica à do index.html de forma dinâmica
+    // Cria a div do outro jogador
     const novaCapivara = document.createElement('div');
     novaCapivara.id = dados.id;
-    novaCapivara.classList.add('outro-jogador'); // Mesmos estilos no CSS
-    novaCapivara.style.position = 'absolute';
-    novaCapivara.style.width = '100px';
-    novaCapivara.style.height = '100px';
-    novaCapivara.style.backgroundColor = '#A0522D'; // Uma cor ligeiramente diferente pra diferenciar
-    novaCapivara.style.zIndex = '10';
-    novaCapivara.style.transition = 'top 1s linear, left 1s linear';
+    
+    // Adiciona as classes: 'outro-jogador' para controle e 'capivara-sprite' para a imagem!
+    novaCapivara.classList.add('outro-jogador', 'capivara-sprite'); 
+    
+    // Posiciona a capivara do outro jogador onde o servidor mandar
     novaCapivara.style.left = dados.x;
     novaCapivara.style.top = dados.y;
 
@@ -145,14 +142,17 @@ function criarOutraCapivara(dados) {
     balao.classList.add('balao');
     novaCapivara.appendChild(balao);
 
-    // Nome dele
+    // Nome dele embaixo
     const nome = document.createElement('div');
-    nome.id = 'nome-jogador'; // Copia o estilo do CSS
+    nome.id = 'nome-jogador'; // Puxa o mesmo estilo de caixa preta com texto branco
     nome.innerText = dados.nickname;
     novaCapivara.appendChild(nome);
 
+    // Coloca a nova capivara dentro do mapa
     jogoContainer.appendChild(novaCapivara);
-    outrasCapivaras[dados.id] = novaCapivara; // Salva na nossa lista de controle
+    
+    // Salva na lista de controle do multiplayer
+    outrasCapivaras[dados.id] = novaCapivara; 
 }
 
 // Controla a exibição e o sumiço do balão de fala após 15 segundos

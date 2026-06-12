@@ -60,21 +60,39 @@ body {
     font-weight: bold;
 }
 
+/* --- Modifique a classe da capivara --- */
 .capivara-sprite {
     width: 100px;
     height: 100px;
+    /* border: 2px solid lime; */
     background-image: url('capivara.png'); 
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
     position: absolute;
     z-index: 10;
-    transition: top 1s linear, left 1s linear;
     pointer-events: none;
+    /* Apague a linha 'transition' que ficava aqui! */
 }
 
 #jogador {
     display: none; 
+}
+
+/* --- Adicione o estilo das portas no final do arquivo --- */
+#portas-container {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; /* Deixa o clique passar para o mapa */
+    z-index: 5;
+}
+
+.hitbox {
+    position: absolute;
+    border: 3px dashed rgba(255, 255, 255, 0.8);
+    background-color: rgba(255, 0, 0, 0.3); /* Fundo vermelho transparente */
+    pointer-events: none;
 }
 
 #btn-entrar:hover {
@@ -87,14 +105,14 @@ body {
     height: 100vh;
     position: relative;
     background-color: #87CEEB; /* Cor do céu temporária */
+    /* background-image: url('./centro.png'); */
 }
 
 #cenario-fundo {
     width: 100%;
     height: 100%;
     position: absolute;
-    /* Coloque a imagem da sua cidade principal aqui depois */
-    /* background-image: url('cidade-principal.jpg'); */
+    background-image: url('centro.png');
     background-size: cover;
     background-position: center;
     z-index: 1;

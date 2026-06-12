@@ -4,23 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CapivarasChat</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 
     <div id="tela-login">
         <div class="login-caixa">
             <h1>CapivarasChat 🐾</h1>
-            <input type="text" id="nickname-input" value="João" placeholder="Digite seu Nickname" maxlength="15" autocomplete="off">
+            <input type="text" id="nickname-input" value="Luke" placeholder="Digite seu Nickname" maxlength="35" autocomplete="off">
             <button id="btn-entrar">Entrar na Cidade</button>
         </div>
     </div>
 
     <div id="jogo-container">
         <div id="cenario-fundo"></div>
-        
-        <div id="portas-container"></div>
-        
+        <div id="portas-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; pointer-events: none;"></div>
         <div id="jogador" class="capivara-sprite">
             <div id="balao-chat" class="balao"></div>
             <div id="nome-jogador"></div>
@@ -30,9 +28,12 @@
     <div id="chat-ui">
         <input type="text" id="chat-input" maxlength="30" placeholder="Fale algo (Máx 30 letras)..." autocomplete="off">
     </div>
+    
+    <div id="controles-extras" style="display: none; position: absolute; right: 20px; bottom: 80px; z-index: 100;">
+        <button id="btn-mortal" style="padding: 10px 20px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; border: 2px solid #333; background: #FFD700;">🔄 Dar Mortal</button>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    
     <script src="script.js"></script>
 </body>
 </html>

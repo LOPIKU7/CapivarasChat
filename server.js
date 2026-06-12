@@ -24,7 +24,9 @@ io.on('connection', (socket) => {
             id: socket.id,
             nickname: dados.nickname,
             x: '50%',
-            y: '50%'
+            y: '50%',
+            // 🛠️ MUDANÇA AQUI: Pega a sala enviada pelo cliente, ou usa 'centro' como padrão
+            sala: dados.sala || 'centro' 
         };
 
         // Envia a lista de jogadores atuais para quem acabou de entrar
@@ -32,24 +34,39 @@ io.on('connection', (socket) => {
 
         // Avisa todos os outros jogadores que uma nova capivara entrou
         socket.broadcast.emit('novoJogador', jogadores[socket.id]);
-    });
+    }); 
 
     // 2. Quando um jogador clica para andar
-    socket.on('movimentoJogador', (dadosMovimento) => {
+    socket.on('movimentoJogador', (dados) => {
         if (jogadores[socket.id]) {
-            jogadores[socket.id].x = dadosMovimento.x;
-            jogadores[socket.id].y = dadosMovimento.y;
+            jogadores[socket.id].x = dados.x;
+            jogadores[socket.id].y = dados.y;
+            jogadores[socket.id].sala = dados.sala;
 
-            // Avisa todo mundo para onde essa capivara foi
+            // Avisa todo mundo para onde essa capivara foi e o tempo da animação
             socket.broadcast.emit('jogadorMoveu', {
                 id: socket.id,
-                x: dadosMovimento.x,
-                y: dadosMovimento.y
+                x: dados.x,
+                y: dados.y,
+                tempo: dados.tempo, // Importante para a velocidade constante no multiplayer
+                sala: dados.sala
             });
         }
     });
 
-    // 3. Quando um jogador envia uma mensagem de chat
+    // 3. Quando o jogador bate na borda e muda de cenário
+    socket.on('mudarSala', (dados) => {
+        if (jogadores[socket.id]) {
+            jogadores[socket.id].sala = dados.sala;
+            jogadores[socket.id].x = dados.x;
+            jogadores[socket.id].y = dados.y;
+            
+            // Avisa todo mundo para atualizar o local dessa capivara
+            io.emit('atualizarSala', jogadores[socket.id]); 
+        }
+    });
+
+    // 4. Quando um jogador envia uma mensagem de chat
     socket.on('enviarMensagem', (mensagem) => {
         // Transmite a mensagem para todo mundo, junto com o ID de quem falou
         io.emit('mensagemRecebida', {
@@ -58,7 +75,7 @@ io.on('connection', (socket) => {
         });
     });
 
-    // 4. Quando o jogador fecha o site / desconecta
+    // 5. Quando o jogador fecha o site / desconecta
     socket.on('disconnect', () => {
         console.log(`Capivara desconectou: ${socket.id}`);
         // Remove da lista

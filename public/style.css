@@ -60,39 +60,67 @@ body {
     font-weight: bold;
 }
 
-/* --- Modifique a classe da capivara --- */
+/* --- Estilos base da Capivara --- */
 .capivara-sprite {
     width: 100px;
     height: 100px;
-    /* border: 2px solid lime; */
-    background-image: url('capivara.png'); 
+    background-image: url('capivara.png'); /* 👈 A imagem original VOLTA para cá! */
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
     position: absolute;
     z-index: 10;
     pointer-events: none;
-    /* Apague a linha 'transition' que ficava aqui! */
+    /* transition: top 0.8s, left 0.8s; <- Continua fora, o JS que manda nisso agora! */
+}
+
+/* --- Classes de Direção (Girando a imagem original) --- */
+.virado-esquerda {
+    transform: scaleX(1); /* Posição normal */
+}
+
+.virado-direita {
+    transform: scaleX(-1); /* Espelha a capivara horizontalmente */
+}
+
+/* O Truque Ninja: "Desespelha" o texto para não ficar de trás pra frente! */
+.virado-direita .balao, 
+.virado-direita #nome-jogador {
+    transform: scaleX(-1); 
 }
 
 #jogador {
     display: none; 
 }
 
-/* --- Adicione o estilo das portas no final do arquivo --- */
+/* --- ANIMAÇÃO DO MORTAL --- */
+@keyframes mortal {
+    0% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-80px) rotate(180deg); } /* Sobe 80px e fica de cabeça para baixo */
+    100% { transform: translateY(0) rotate(360deg); } /* Volta pro chão em pé */
+}
+
+.animacao-mortal {
+    animation: mortal 0.7s ease-in-out;
+}
+
+/* --- CAIXAS DE COLISÃO (HITBOXES) MODO NUCLEAR --- */
 #portas-container {
     position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none; /* Deixa o clique passar para o mapa */
-    z-index: 5;
+    top: 0; 
+    left: 0;
+    width: 100%; 
+    height: 100%;
+    pointer-events: none;
+    z-index: 99; /* 👈 Aumentei pra 99 pra garantir que passe por cima de TODO o mapa */
 }
 
 .hitbox {
     position: absolute;
-    /* border: 3px dashed rgba(255, 255, 255, 0.8); */
-    /* background-color: rgba(255, 0, 0, 0.3); /* Fundo vermelho transparente */ */
+    border: 4px dashed #00FF00 !important; /* 👈 Verde neon super forte */
+    background-color: rgba(255, 0, 0, 0.5) !important; /* Vermelho transparente */
     pointer-events: none;
+    z-index: 100; /* 👈 Nenhuma imagem de fundo vai cobrir isso agora! */
 }
 
 #btn-entrar:hover {

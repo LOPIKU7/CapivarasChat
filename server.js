@@ -25,8 +25,8 @@ io.on('connection', (socket) => {
             nickname: dados.nickname,
             x: '50%',
             y: '50%',
-            // 🛠️ MUDANÇA AQUI: Pega a sala enviada pelo cliente, ou usa 'centro' como padrão
-            sala: dados.sala || 'centro' 
+            sala: dados.sala || 'centro',
+            direcao: dados.direcao || 'esquerda' // 👈 Atualizado: Guarda a direção inicial
         };
 
         // Envia a lista de jogadores atuais para quem acabou de entrar
@@ -34,7 +34,7 @@ io.on('connection', (socket) => {
 
         // Avisa todos os outros jogadores que uma nova capivara entrou
         socket.broadcast.emit('novoJogador', jogadores[socket.id]);
-    }); 
+    });
 
     // 2. Quando um jogador clica para andar
     socket.on('movimentoJogador', (dados) => {
@@ -42,14 +42,16 @@ io.on('connection', (socket) => {
             jogadores[socket.id].x = dados.x;
             jogadores[socket.id].y = dados.y;
             jogadores[socket.id].sala = dados.sala;
+            jogadores[socket.id].direcao = dados.direcao; // 👈 Atualizado: Atualiza a direção no servidor
 
-            // Avisa todo mundo para onde essa capivara foi e o tempo da animação
+            // Avisa todo mundo para onde essa capivara foi e para onde está olhando
             socket.broadcast.emit('jogadorMoveu', {
                 id: socket.id,
                 x: dados.x,
                 y: dados.y,
-                tempo: dados.tempo, // Importante para a velocidade constante no multiplayer
-                sala: dados.sala
+                tempo: dados.tempo, 
+                sala: dados.sala,
+                direcao: dados.direcao // 👈 Atualizado: Manda a direção para os outros jogadores
             });
         }
     });
@@ -61,8 +63,11 @@ io.on('connection', (socket) => {
             jogadores[socket.id].x = dados.x;
             jogadores[socket.id].y = dados.y;
             
-            // Avisa todo mundo para atualizar o local dessa capivara
-            io.emit('atualizarSala', jogadores[socket.id]); 
+            // Avisa os OUTROS jogadores para adicionarem ou removerem você
+            socket.broadcast.emit('atualizarSala', jogadores[socket.id]); 
+
+            // Manda a lista atualizada de todo mundo da sala nova para VOCÊ
+            socket.emit('jogadoresAtuais', jogadores);
         }
     });
 
@@ -75,7 +80,18 @@ io.on('connection', (socket) => {
         });
     });
 
-    // 5. Quando o jogador fecha o site / desconecta
+    // 5. Quando um jogador dá um mortal
+    socket.on('fazerMortal', () => {
+        if (jogadores[socket.id]) {
+            // Avisa todo mundo daquela mesma sala que o cara fez um mortal
+            socket.broadcast.emit('outroFezMortal', { 
+                id: socket.id, 
+                sala: jogadores[socket.id].sala 
+            });
+        }
+    });
+
+    // 6. Quando o jogador fecha o site / desconecta
     socket.on('disconnect', () => {
         console.log(`Capivara desconectou: ${socket.id}`);
         // Remove da lista

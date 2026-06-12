@@ -13,16 +13,16 @@ const balaoChatLocal = document.getElementById('balao-chat');
 
 const chatUi = document.getElementById('chat-ui');
 const chatInput = document.getElementById('chat-input');
+const controlesExtras = document.getElementById('controles-extras');
+const btnMortal = document.getElementById('btn-mortal');
 
 let meuNickname = "";
-let meuCenarioAtual = "centro";
-// let meuCenarioAtual = "praia";
-// let meuCenarioAtual = "parque";
+let meuCenarioAtual = "central"; // O mapa que você colocou para debugar
 let mudandoDeCenario = false;
 let timerBalaoLocal;
 let outrasCapivaras = {}; 
 
-const VELOCIDADE_CAPIVARA = 300; // Pixels por segundo (Aumente para correr, diminua para andar lento)
+const VELOCIDADE_CAPIVARA = 300; 
 
 // ==========================================
 // 1. SISTEMA DE CENÁRIOS E HITBOXES
@@ -62,17 +62,25 @@ function carregarCenario(nomeCenario) {
         cenarioFundo.style.backgroundImage = cenarios[nomeCenario].fundo;
         portasContainer.innerHTML = '';
 
-        // Desenha as hitboxes na tela para você poder enxergar e ajustar
         cenarios[nomeCenario].portas.forEach(porta => {
             const divPorta = document.createElement('div');
             divPorta.classList.add('hitbox');
+            
+            // ☢️ MODO FORÇADO: Ignora o arquivo CSS e pinta direto no navegador!
+            divPorta.style.position = 'absolute';
             divPorta.style.top = porta.top;
             divPorta.style.left = porta.left;
             divPorta.style.width = porta.width;
             divPorta.style.height = porta.height;
+            divPorta.style.backgroundColor = 'rgba(255, 0, 0, 0.5)'; // Fundo vermelho
+            divPorta.style.border = '4px dashed #00FF00'; // Borda verde neon
+            divPorta.style.zIndex = '9999'; // Prioridade infinita (Nada cobre ela)
+            divPorta.style.pointerEvents = 'none';
+
             divPorta.dataset.destino = porta.destino;
             divPorta.dataset.spawnTop = porta.spawnTop;
             divPorta.dataset.spawnLeft = porta.spawnLeft;
+            
             portasContainer.appendChild(divPorta);
         });
     }
@@ -88,7 +96,6 @@ function loopColisao() {
 
         portas.forEach(porta => {
             const rectPorta = porta.getBoundingClientRect();
-            // Verifica se a capivara encostou na caixa vermelha
             if (
                 rectJogador.left < rectPorta.right &&
                 rectJogador.right > rectPorta.left &&
@@ -100,17 +107,17 @@ function loopColisao() {
                 const spawnTop = porta.dataset.spawnTop;
                 const spawnLeft = porta.dataset.spawnLeft;
 
-                // Cancela o movimento e joga no ponto de spawn
                 jogadorLocal.style.transition = 'none';
                 jogadorLocal.style.top = spawnTop;
                 jogadorLocal.style.left = spawnLeft;
 
+                Object.values(outrasCapivaras).forEach(boneco => boneco.remove());
+                outrasCapivaras = {}; 
+
                 carregarCenario(destino);
 
-                // Avisa o servidor que fomos pra outra sala
                 socket.emit('mudarSala', { sala: destino, x: spawnLeft, y: spawnTop });
 
-                // Trava rápida pra não teleportar duas vezes seguidas
                 setTimeout(() => { mudandoDeCenario = false; }, 500);
             }
         });
@@ -119,7 +126,7 @@ function loopColisao() {
 }
 
 // ==========================================
-// 3. LOGIN & MOVIMENTO CONSTANTE
+// 3. LOGIN & MOVIMENTO CONSTANTE E DIREÇÃO
 // ==========================================
 btnEntrar.addEventListener('click', entrarNoJogo);
 inputNickname.addEventListener('keypress', (e) => { if (e.key === 'Enter') entrarNoJogo(); });
@@ -130,17 +137,19 @@ function entrarNoJogo() {
         nomeJogadorLocal.innerText = meuNickname;
         telaLogin.style.display = 'none';
         jogadorLocal.style.display = 'block';
+        
+        jogadorLocal.classList.add('virado-esquerda'); 
+        jogadorLocal.classList.remove('virado-direita');
+
         chatUi.style.display = 'flex';
+        controlesExtras.style.display = 'block';
         
         jogadorLocal.style.top = '70%';
         jogadorLocal.style.left = '50%';
-        
-        // 🛠️ MUDANÇA AQUI: Mude de 'centro' para meuCenarioAtual
-        carregarCenario(meuCenarioAtual); 
+        carregarCenario(meuCenarioAtual);
         loopColisao(); 
 
-        // 🛠️ MUDANÇA AQUI: Envie o cenário atual para o servidor saber onde você nasceu
-        socket.emit('entrarNoJogo', { nickname: meuNickname, sala: meuCenarioAtual });
+        socket.emit('entrarNoJogo', { nickname: meuNickname, sala: meuCenarioAtual, direcao: 'esquerda' });
     }
 }
 
@@ -151,20 +160,27 @@ jogoContainer.addEventListener('click', (e) => {
     const destX = e.clientX - rect.left - 50; 
     const destY = e.clientY - rect.top - 50;
 
-    // Pega a posição exata de onde o boneco está agora
     const estiloComputado = window.getComputedStyle(jogadorLocal);
     const atualX = parseFloat(estiloComputado.left) || destX;
     const atualY = parseFloat(estiloComputado.top) || destY;
 
-    // Teorema de Pitágoras para achar a distância em pixels
+    let minhaNovaDirecao = 'esquerda'; 
+    
+    if (destX > atualX) {
+        minhaNovaDirecao = 'direita';
+        jogadorLocal.classList.add('virado-direita');
+        jogadorLocal.classList.remove('virado-esquerda');
+    } else if (destX < atualX) {
+        minhaNovaDirecao = 'esquerda';
+        jogadorLocal.classList.add('virado-esquerda');
+        jogadorLocal.classList.remove('virado-direita');
+    }
+
     const distanciaX = destX - atualX;
     const distanciaY = destY - atualY;
     const distanciaTotal = Math.sqrt((distanciaX * distanciaX) + (distanciaY * distanciaY));
-
-    // Calcula o tempo baseado na velocidade fixa (Tempo = Distância / Velocidade)
     const tempoEmSegundos = distanciaTotal / VELOCIDADE_CAPIVARA;
 
-    // Aplica o tempo dinâmico
     jogadorLocal.style.transition = `top ${tempoEmSegundos}s linear, left ${tempoEmSegundos}s linear`;
     const novaPosLeft = `${destX}px`;
     const novaPosTop = `${destY}px`;
@@ -176,14 +192,15 @@ jogoContainer.addEventListener('click', (e) => {
         x: novaPosLeft, 
         y: novaPosTop, 
         tempo: tempoEmSegundos, 
-        sala: meuCenarioAtual 
+        sala: meuCenarioAtual,
+        direcao: minhaNovaDirecao 
     });
 });
 
 chatInput.addEventListener('click', (e) => { e.stopPropagation(); });
 
 // ==========================================
-// 4. CHAT E MULTIPLAYER
+// 4. CHAT E MULTIPLAYER (Onde o bug estava)
 // ==========================================
 chatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
@@ -196,41 +213,69 @@ chatInput.addEventListener('keypress', (e) => {
     }
 });
 
-// Sincroniza a sala dos jogadores
+socket.on('jogadoresAtuais', (jogadores) => {
+    Object.keys(outrasCapivaras).forEach(id => {
+        outrasCapivaras[id].remove();
+        delete outrasCapivaras[id];
+    });
+
+    Object.keys(jogadores).forEach((id) => {
+        if (id !== socket.id && jogadores[id].sala === meuCenarioAtual) {
+            criarOutraCapivara(jogadores[id]);
+        }
+    });
+});
+
 function gerenciarPresenca(dados) {
-    // --- ADICIONE ESTA LINHA AQUI PARA MATAR O CLONE ---
-    if (dados.id === socket.id) return; // Ignora a criação se for o seu próprio boneco!
-    
+    if (dados.id === socket.id) return; 
+
+    if (dados.sala === meuCenarioAtual) {
+        if (!outrasCapivaras[dados.id]) {
+            criarOutraCapivara(dados); 
+        } else {
+            outrasCapivaras[dados.id].style.transition = 'none';
+            outrasCapivaras[dados.id].style.left = dados.x;
+            outrasCapivaras[dados.id].style.top = dados.y;
+            
+            if (dados.direcao === 'direita') {
+                outrasCapivaras[dados.id].classList.add('virado-direita');
+                outrasCapivaras[dados.id].classList.remove('virado-esquerda');
+            } else {
+                outrasCapivaras[dados.id].classList.add('virado-esquerda');
+                outrasCapivaras[dados.id].classList.remove('virado-direita');
+            }
+        }
+    } else {
+        if (outrasCapivaras[dados.id]) {
+            outrasCapivaras[dados.id].remove();
+            delete outrasCapivaras[dados.id];
+        }
+    }
+}
+
+// ⚠️ ESSAS ERAM AS DUAS LINHAS QUE HAVIAM SUMIDO! ⚠️
+socket.on('novoJogador', gerenciarPresenca);
+socket.on('atualizarSala', gerenciarPresenca);
+// ===================================================
+
+socket.on('jogadorMoveu', (dados) => {
     if (dados.sala !== meuCenarioAtual) {
         if (outrasCapivaras[dados.id]) {
             outrasCapivaras[dados.id].remove();
             delete outrasCapivaras[dados.id];
         }
-        return;
+        return; 
     }
-    
-    if (!outrasCapivaras[dados.id]) {
-        criarOutraCapivara(dados);
-    } else {
-        outrasCapivaras[dados.id].style.transition = 'none'; // Corta animação ao mudar de sala
-        outrasCapivaras[dados.id].style.left = dados.x;
-        outrasCapivaras[dados.id].style.top = dados.y;
-    }
-}
-
-socket.on('jogadoresAtuais', (jogadores) => {
-    Object.keys(jogadores).forEach((id) => {
-        if (id !== socket.id) gerenciarPresenca(jogadores[id]);
-    });
-});
-
-socket.on('novoJogador', gerenciarPresenca);
-socket.on('atualizarSala', gerenciarPresenca);
-
-socket.on('jogadorMoveu', (dados) => {
-    if (dados.sala !== meuCenarioAtual) return;
 
     if (outrasCapivaras[dados.id]) {
+        if (dados.direcao === 'direita') {
+            outrasCapivaras[dados.id].classList.add('virado-direita');
+            outrasCapivaras[dados.id].classList.remove('virado-esquerda');
+        } else if (dados.direcao === 'esquerda') {
+            outrasCapivaras[dados.id].classList.add('virado-esquerda');
+            outrasCapivaras[dados.id].classList.remove('virado-direita');
+        }
+
         outrasCapivaras[dados.id].style.transition = `top ${dados.tempo}s linear, left ${dados.tempo}s linear`;
         outrasCapivaras[dados.id].style.left = dados.x;
         outrasCapivaras[dados.id].style.top = dados.y;
@@ -252,11 +297,20 @@ socket.on('jogadorDesconectou', (id) => {
     }
 });
 
-// Funções base de UI (Balão e Criação)
+// ==========================================
+// 5. FUNÇÕES AUXILIARES E MORTAL
+// ==========================================
 function criarOutraCapivara(dados) {
     const nova = document.createElement('div');
     nova.id = dados.id;
     nova.classList.add('outro-jogador', 'capivara-sprite'); 
+    
+    if(dados.direcao === 'direita') {
+        nova.classList.add('virado-direita');
+    } else {
+        nova.classList.add('virado-esquerda'); 
+    }
+
     nova.style.left = dados.x;
     nova.style.top = dados.y;
 
@@ -278,4 +332,22 @@ function mostrarBalao(elementoBalao, texto) {
     elementoBalao.style.display = 'block';
     if (elementoBalao.timerBalao) clearTimeout(elementoBalao.timerBalao);
     elementoBalao.timerBalao = setTimeout(() => { elementoBalao.style.display = 'none'; }, 15000); 
+}
+
+btnMortal.addEventListener('click', (e) => {
+    e.stopPropagation(); 
+    fazerMortal(jogadorLocal); 
+    socket.emit('fazerMortal'); 
+});
+
+socket.on('outroFezMortal', (dados) => {
+    if (dados.sala === meuCenarioAtual && outrasCapivaras[dados.id]) {
+        fazerMortal(outrasCapivaras[dados.id]);
+    }
+});
+
+function fazerMortal(elemento) {
+    if (!elemento || elemento.classList.contains('animacao-mortal')) return;
+    elemento.classList.add('animacao-mortal');
+    setTimeout(() => { elemento.classList.remove('animacao-mortal'); }, 800); 
 }

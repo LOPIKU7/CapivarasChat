@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const criarPescaria = require('./minigames/pescaria');
 
 const app = express();
 const server = http.createServer(app);
@@ -26,11 +27,11 @@ const EMOTES = ['mortal', 'acenar', 'dancar', 'pular', 'coracao', 'risada', 'dor
 
 // Salas disponíveis. Posições são em % da tela, no ponto das patas da capivara.
 // minY = até onde a capivara pode subir; spawn = onde ela aparece ao chegar pela barra de salas;
-// bolaDeNeve = se dá para jogar bola de neve na sala.
+// bolaDeNeve = se dá para jogar bola de neve na sala; pesca = se tem pescaria.
 const SALAS = {
     centro:    { id: 'centro',    nome: 'Centro',    minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: true },
     parque:    { id: 'parque',    nome: 'Parque',    minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: true },
-    praia:     { id: 'praia',     nome: 'Praia',     minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: true },
+    praia:     { id: 'praia',     nome: 'Praia',     minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: true, pesca: true },
     cafeteria: { id: 'cafeteria', nome: 'Cafeteria', minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: false },
 };
 const SALA_INICIAL = 'centro';
@@ -108,6 +109,7 @@ function publico(j) {
     return {
         id: j.id, nick: j.nick, cor: j.cor, x: j.x, y: j.y, direcao: j.direcao,
         congelado: Math.max(0, j.congeladoAte - Date.now()), // ms que ainda faltam
+        pescando: pescaria.estaPescando(j),
     };
 }
 
@@ -122,6 +124,11 @@ function mensagemSistema(salaId, texto) {
     registrarNoHistorico(salaId, item);
     io.to(salaId).emit('mensagem', item);
 }
+
+// ==========================================
+// MINIGAMES
+// ==========================================
+const pescaria = criarPescaria({ io, jogadores, mensagemSistema, estaCongelado });
 
 function colocarNaSala(socket, jogador, salaId, posicaoPedida) {
     const pos = posicaoNaSala(salaId, posicaoPedida);
@@ -154,6 +161,8 @@ io.on('connection', (socket) => {
 
     // Lista de salas para a tela de login
     socket.emit('salas', { salas: Object.values(SALAS), contagem: contagemSalas() });
+
+    pescaria.registrar(socket);
 
     socket.on('entrar', (dados, responder) => {
         if (typeof responder !== 'function') return;
@@ -196,6 +205,7 @@ io.on('connection', (socket) => {
         if (x !== jogador.x) jogador.direcao = x > jogador.x ? 1 : -1;
         jogador.x = x;
         jogador.y = y;
+        pescaria.interromper(jogador);
 
         socket.to(jogador.sala).emit('jogadorMoveu', { id: jogador.id, x, y, direcao: jogador.direcao });
     });
@@ -246,6 +256,7 @@ io.on('connection', (socket) => {
         if (!jogador || !SALAS[salaId] || salaId === jogador.sala) return responder({ ok: false });
         if (estaCongelado(jogador)) return responder({ ok: false, erro: 'Você está congelado! ❄️' });
 
+        pescaria.interromper(jogador);
         tirarDaSala(socket, jogador, `${jogador.nick} foi para ${SALAS[salaId].nome}`);
         const estado = colocarNaSala(socket, jogador, salaId, dados.posicao);
         responder({ ok: true, eu: publico(jogador), ...estado });
@@ -294,6 +305,7 @@ io.on('connection', (socket) => {
         jogador.x = x;
         jogador.y = y;
         jogador.congeladoAte = Date.now() + TEMPO_CONGELADO_MS;
+        pescaria.interromper(jogador);
 
         const atirador = jogadores.get(bola.de);
         io.to(jogador.sala).emit('congelado', {
@@ -310,6 +322,7 @@ io.on('connection', (socket) => {
         console.log(`Capivara desconectou: ${socket.id}`);
         if (!jogador) return;
 
+        pescaria.interromper(jogador);
         jogadores.delete(socket.id);
         tirarDaSala(socket, jogador, `${jogador.nick} saiu do jogo`);
         enviarContagemSalas();

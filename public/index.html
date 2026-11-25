@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CapivarasChat</title>
     <link rel="icon" href="capivara.png">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 
@@ -54,6 +54,9 @@
     </aside>
     <button id="btn-abrir-painel" class="hud" title="Mostrar chat" hidden>💬<span id="badge-nao-lidas" hidden></span></button>
 
+    <!-- Botão do minigame da sala (ex.: pescaria na Praia) -->
+    <button id="btn-minigame" class="hud" hidden></button>
+
     <!-- Barra inferior: emotes + chat -->
     <div id="chat-ui" class="hud">
         <div id="emotes">
@@ -76,6 +79,6 @@
     <div id="status-conexao" hidden>Reconectando...</div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js?v=4"></script>
+    <script src="script.js?v=5"></script>
 </body>
 </html>

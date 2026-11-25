@@ -26,6 +26,9 @@ A porta pode ser trocada com a variável de ambiente `PORT`.
 - **Guerra de bolas de neve** ❄️: botão direito do mouse joga uma bola (ou ❄️ / tecla `B` para entrar no modo mira).
   Quem for atingido fica **congelado por 3 segundos** dentro de um bloco de gelo, sem poder andar nem jogar.
   Funciona em todas as salas menos na Cafeteria.
+- **Pescaria** 🎣 (Praia): chegue perto da água e clique em **Pescar**. Quando a boia afundar (❗), clique em
+  **PUXAR!** (ou aperte Espaço) em até 1 segundo. Puxar cedo ou tarde demais faz o peixe fugir. Tem 9 tipos de
+  peixe, dos comuns aos raros 🦑🐙🦈 (peixes raros são anunciados no chat da sala).
 - **Emotes**: 🔄 mortal, 👋 acenar, 💃 dançar, ⬆️ pular, ❤️ coração, 😂 risada, 💤 dormir (pelos botões ou digitando `/mortal`, `/dancar`...).
 - **Cor da capivara** personalizável no login e durante o jogo.
 - **Comandos de chat**: `/ajuda`, `/limpar`, `/portas` (mostra as áreas das portas, útil para ajustar as coordenadas) e os emotes.
@@ -44,6 +47,8 @@ A porta pode ser trocada com a variável de ambiente `PORT`.
 
 ```
 server.js          # servidor Express + Socket.IO (salas, jogadores, chat)
+minigames/
+  pescaria.js      # pescaria da Praia (tempo e sorteio dos peixes no servidor)
 public/
   index.html       # telas de login e do jogo
   script.js        # lógica do cliente (movimento, chat, emotes, salas)

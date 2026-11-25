@@ -210,6 +210,8 @@ function carregarSala(resposta) {
     desenharCenario(salaAtual.id);
     btnBola.hidden = !salaAtual.bolaDeNeve;
     if (!salaAtual.bolaDeNeve) alternarMira(false);
+    estadoPesca = null; // trocar de sala cancela a pescaria
+    atualizarBotaoMinigame();
     resposta.jogadores.forEach(adicionarJogador);
     // Se nasceu em cima de uma porta, ela só vale depois de sair e entrar de novo
     portasDentro = portasTocando();
@@ -353,7 +355,13 @@ function adicionarJogador(dados) {
     const gelo = document.createElement('div');
     gelo.className = 'gelo';
 
-    el.append(balao, digitando, emote, sprite, gelo, nome);
+    const vara = document.createElement('div');
+    vara.className = 'vara';
+    vara.textContent = '🎣';
+    const boia = document.createElement('div');
+    boia.className = 'boia';
+
+    el.append(balao, digitando, emote, sprite, gelo, vara, boia, nome);
     camadaJogadores.appendChild(el);
 
     const jogador = { dados: { ...dados }, el, sprite, balao, digitando, emote, timers: {} };
@@ -363,6 +371,7 @@ function adicionarJogador(dados) {
     posicionar(jogador, dados.x, dados.y, false);
     virar(jogador, dados.direcao);
     if (dados.congelado > 0) congelar(jogador, dados.congelado);
+    if (dados.pescando) el.classList.add('pescando');
     renderizarListaOnline();
 }
 
@@ -384,6 +393,7 @@ function virar(jogador, direcao) {
     // A imagem original olha para a esquerda; direcao 1 = direita
     jogador.dados.direcao = direcao;
     jogador.sprite.classList.toggle('virado', direcao === 1);
+    jogador.el.classList.toggle('olhando-direita', direcao === 1);
 }
 
 function posicionar(jogador, x, y, animar = true) {
@@ -625,6 +635,99 @@ socket.on('congelado', ({ id, x, y, duracao, porId, porNick }) => {
 });
 
 // ==========================================
+// PESCARIA (Praia)
+// ==========================================
+const btnMinigame = $('btn-minigame');
+let estadoPesca = null; // null | 'esperando' | 'mordeu'
+
+function atualizarBotaoMinigame() {
+    const temPesca = Boolean(salaAtual && salaAtual.pesca);
+    btnMinigame.hidden = !temPesca;
+    if (!temPesca) return;
+
+    btnMinigame.classList.toggle('esperando', estadoPesca === 'esperando');
+    btnMinigame.classList.toggle('mordeu', estadoPesca === 'mordeu');
+    btnMinigame.textContent =
+        estadoPesca === 'mordeu' ? '❗ PUXAR!' :
+        estadoPesca === 'esperando' ? '🎣 Esperando a mordida...' :
+        '🎣 Pescar';
+}
+
+function acaoPesca() {
+    if (!salaAtual || !salaAtual.pesca) return;
+    if (estadoPesca) {
+        // Puxar antes da mordida faz o peixe fugir: faz parte do jogo!
+        socket.emit('puxar');
+        return;
+    }
+    socket.emit('pescar', (resposta) => {
+        if (!resposta.ok) {
+            if (resposta.erro) mostrarToast(resposta.erro);
+            return;
+        }
+        estadoPesca = 'esperando';
+        atualizarBotaoMinigame();
+    });
+}
+
+btnMinigame.addEventListener('click', acaoPesca);
+
+// Espaço também puxa a vara (quando não está digitando)
+document.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space' || !estadoPesca) return;
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+    e.preventDefault();
+    acaoPesca();
+});
+
+function mostrarFlutuante(jogador, texto, duracao = 2200) {
+    const el = jogador.emote;
+    el.textContent = texto;
+    el.classList.remove('visivel');
+    void el.offsetWidth;
+    el.classList.add('visivel');
+    clearTimeout(jogador.timers.emote);
+    jogador.timers.emote = setTimeout(() => el.classList.remove('visivel'), duracao);
+}
+
+socket.on('pescando', ({ id }) => {
+    const jogador = jogadores.get(id);
+    if (jogador) jogador.el.classList.add('pescando');
+});
+
+socket.on('mordeu', ({ id }) => {
+    const jogador = jogadores.get(id);
+    if (jogador) jogador.el.classList.add('mordeu');
+    if (id === meuId) {
+        estadoPesca = 'mordeu';
+        atualizarBotaoMinigame();
+    }
+});
+
+socket.on('pescaFim', ({ id, peixe, motivo }) => {
+    const jogador = jogadores.get(id);
+    if (jogador) {
+        jogador.el.classList.remove('pescando', 'mordeu');
+        if (peixe) mostrarFlutuante(jogador, peixe.emoji);
+    }
+    if (id !== meuId) return;
+
+    estadoPesca = null;
+    atualizarBotaoMinigame();
+    if (peixe) {
+        mostrarToast(peixe.id === 'bota'
+            ? 'Você pescou uma 👢 Bota velha... 😅'
+            : `Você pescou: ${peixe.emoji} ${peixe.nome}!${peixe.raro ? ' Que raro! ✨' : ''}`);
+    } else if (motivo === 'cedo') {
+        mostrarToast('Puxou cedo demais! O peixe fugiu 🐟💨');
+    } else if (motivo === 'tarde') {
+        mostrarToast('Demorou demais! O peixe levou a isca 🐟💨');
+    } else if (motivo === 'cancelada') {
+        mostrarToast('Você guardou a vara de pesca.');
+    }
+});
+
+// ==========================================
 // 5. CHAT (BALÃO + HISTÓRICO)
 // ==========================================
 let digitandoAtivo = false;
@@ -690,7 +793,8 @@ function executarComando(texto) {
             hora: Date.now(),
             texto: `Comandos: ${Object.keys(EMOJI_EMOTES).map((c) => '/' + c).join(', ')}, /limpar, /portas, /ajuda. ` +
                 'Clique no chão para andar, ande até as saídas para trocar de sala e use Enter para falar. ' +
-                'Bola de neve: botão direito do mouse, ou ❄️ / tecla B para mirar.',
+                'Bola de neve: botão direito do mouse, ou ❄️ / tecla B para mirar. ' +
+                'Na Praia, chegue perto da água e clique em 🎣 Pescar (Espaço também puxa).',
         });
         abrirPainel('chat');
     } else {

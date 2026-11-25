@@ -833,3 +833,116 @@ body.em-jogo .hud {
     0%, 100% { translate: 0 0; }
     50% { translate: 0 -4px; }
 }
+
+/* --- PESCARIA --- */
+#btn-minigame {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    z-index: 100;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 24px;
+    background: #1e88c8;
+    color: white;
+    font-weight: bold;
+    font-size: 15px;
+    box-shadow: var(--sombra);
+}
+
+#btn-minigame:hover {
+    filter: brightness(1.1);
+}
+
+#btn-minigame.esperando {
+    background: #5c7a8c;
+}
+
+#btn-minigame.mordeu {
+    background: #e74c3c;
+    font-size: 18px;
+    animation: chamar 0.35s ease-in-out infinite;
+}
+
+.vara,
+.boia {
+    position: absolute;
+    pointer-events: none;
+    display: none;
+}
+
+.jogador.pescando .vara,
+.jogador.pescando .boia {
+    display: block;
+}
+
+/* A capivara olha para a esquerda por padrão: vara e boia ficam desse lado */
+.vara {
+    font-size: 34px;
+    line-height: 1;
+    top: 20px;
+    left: -26px;
+    scale: -1 1;
+}
+
+.boia {
+    width: 13px;
+    height: 13px;
+    top: 90px;
+    left: -72px;
+    border-radius: 50%;
+    border: 1px solid #333;
+    background: linear-gradient(#e74c3c 0 50%, #fff 50% 100%);
+    animation: boiar 1.6s ease-in-out infinite;
+}
+
+.jogador.olhando-direita .vara {
+    left: auto;
+    right: -26px;
+    scale: 1 1;
+}
+
+.jogador.olhando-direita .boia {
+    left: auto;
+    right: -72px;
+}
+
+/* Peixe mordeu: a boia afunda e aparece um ❗ */
+.jogador.mordeu .boia {
+    animation: afundar 0.25s ease-in-out infinite;
+}
+
+.jogador.mordeu .boia::after {
+    content: '❗';
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    translate: -50% 0;
+    font-size: 22px;
+}
+
+@keyframes boiar {
+    0%, 100% { translate: 0 0; }
+    50% { translate: 0 3px; }
+}
+
+@keyframes afundar {
+    0%, 100% { translate: 0 2px; }
+    50% { translate: 0 7px; }
+}
+
+@keyframes chamar {
+    0%, 100% { scale: 1; }
+    50% { scale: 1.08; }
+}
+
+@media (max-width: 700px) {
+    #btn-minigame {
+        left: 10px;
+        bottom: 135px;
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+}

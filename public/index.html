@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CapivarasChat</title>
     <link rel="icon" href="capivara.png">
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 
@@ -42,15 +42,30 @@
     <!-- Barra superior: salas -->
     <nav id="barra-salas" class="hud"></nav>
 
+    <!-- Moedas (clique abre o ranking) -->
+    <button id="hud-moedas" class="hud" title="Suas moedas (clique para ver o ranking)">💰 <span id="qtd-moedas">0</span></button>
+
+    <!-- Pergunta do quiz (Centro) -->
+    <div id="quiz-banner" class="hud" hidden>
+        <p><span class="quiz-icone">🧠</span> <span id="quiz-pergunta"></span></p>
+        <div class="quiz-barra"><div id="quiz-progresso"></div></div>
+    </div>
+
     <!-- Painel lateral: chat e online -->
     <aside id="painel" class="hud">
         <div class="painel-abas">
             <button class="aba ativa" data-aba="chat">💬 Chat</button>
-            <button class="aba" data-aba="online">👥 Online <span id="contador-online">0</span></button>
+            <button class="aba" data-aba="online">👥 <span id="contador-online">0</span></button>
+            <button class="aba" data-aba="ranking">🏆 Ranking</button>
             <button id="btn-fechar-painel" title="Esconder painel">✕</button>
         </div>
         <ul id="lista-mensagens" class="painel-conteudo"></ul>
         <ul id="lista-online" class="painel-conteudo" hidden></ul>
+        <div id="painel-ranking" class="painel-conteudo" hidden>
+            <div id="ranking-categorias"></div>
+            <ol id="lista-ranking"></ol>
+            <p id="meus-numeros"></p>
+        </div>
     </aside>
     <button id="btn-abrir-painel" class="hud" title="Mostrar chat" hidden>💬<span id="badge-nao-lidas" hidden></span></button>
 
@@ -75,10 +90,47 @@
         <input type="text" id="chat-input" maxlength="60" placeholder="Fale algo... (Enter para enviar, /ajuda)" autocomplete="off">
     </div>
 
+    <!-- Minigame do garçom (Cafeteria) -->
+    <div id="garcom" hidden>
+        <div class="garcom-caixa">
+            <button id="garcom-sair" title="Parar de trabalhar">✕</button>
+            <div class="garcom-topo">
+                <span id="garcom-tempo">⏱️ 60s</span>
+                <strong>☕ Garçom da Cafeteria</strong>
+                <span id="garcom-placar">✅ 0</span>
+            </div>
+
+            <div id="garcom-jogo">
+                <div class="garcom-cliente">
+                    <span id="garcom-cliente-emoji">🐹</span>
+                    <div id="garcom-pedido" class="garcom-itens" title="Pedido do cliente"></div>
+                </div>
+                <div class="garcom-bandeja">
+                    <span>Bandeja:</span>
+                    <div id="garcom-bandeja" class="garcom-itens" title="Clique num item para tirar"></div>
+                </div>
+                <div id="garcom-cardapio"></div>
+                <div class="garcom-acoes">
+                    <button id="garcom-limpar">🗑️ Limpar</button>
+                    <button id="garcom-entregar">✅ Entregar</button>
+                </div>
+                <p class="garcom-dica">Atalhos: teclas 1–6 colocam itens, Backspace tira o último, Enter entrega.</p>
+            </div>
+
+            <div id="garcom-fim" hidden>
+                <p id="garcom-resultado"></p>
+                <div class="garcom-acoes">
+                    <button id="garcom-denovo">🔁 Jogar de novo</button>
+                    <button id="garcom-fechar">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="toast" role="status" aria-live="polite"></div>
     <div id="status-conexao" hidden>Reconectando...</div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js?v=5"></script>
+    <script src="script.js?v=6"></script>
 </body>
 </html>

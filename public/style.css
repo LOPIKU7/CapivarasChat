@@ -946,3 +946,371 @@ body.em-jogo .hud {
         font-size: 14px;
     }
 }
+
+/* --- MOEDAS --- */
+#hud-moedas {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 100;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 20px;
+    background: rgba(255, 248, 238, 0.92);
+    color: #8a5a00;
+    font-weight: bold;
+    font-size: 15px;
+    box-shadow: var(--sombra);
+}
+
+#hud-moedas.ganhou {
+    animation: moeda-pulo 0.5s ease-out;
+}
+
+.moedas-flutuante {
+    position: absolute;
+    bottom: 95%;
+    left: 50%;
+    translate: -50% 0;
+    color: #ffd24a;
+    font-weight: bold;
+    font-size: 16px;
+    text-shadow: 0 1px 2px #000, 0 0 4px #000;
+    white-space: nowrap;
+    pointer-events: none;
+    animation: moedas-subir 1.4s ease-out forwards;
+}
+
+/* Ícone do que a capivara está fazendo (ex.: 🍽️ trabalhando de garçom) */
+.icone-atividade {
+    position: absolute;
+    top: 6px;
+    right: -14px;
+    font-size: 20px;
+    pointer-events: none;
+    animation: flutuar 2s ease-in-out infinite;
+}
+
+.icone-atividade:empty {
+    display: none;
+}
+
+/* --- QUIZ --- */
+#quiz-banner {
+    position: fixed;
+    top: 62px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    flex-direction: column;
+    gap: 8px;
+    width: min(560px, 92vw);
+    padding: 10px 16px;
+    border-radius: 14px;
+    background: rgba(45, 30, 90, 0.92);
+    color: white;
+    box-shadow: var(--sombra);
+    text-align: center;
+    font-weight: bold;
+}
+
+#quiz-banner.resultado {
+    background: rgba(30, 110, 60, 0.94);
+}
+
+.quiz-barra {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.25);
+    overflow: hidden;
+}
+
+#quiz-progresso {
+    height: 100%;
+    width: 100%;
+    background: #ffd24a;
+}
+
+#quiz-banner.resultado .quiz-barra {
+    display: none;
+}
+
+.msg-quiz {
+    color: #4a2c8a;
+    font-weight: bold;
+    background: rgba(110, 80, 200, 0.1);
+    border-radius: 6px;
+    padding: 3px 5px;
+}
+
+/* --- RANKING --- */
+#ranking-categorias {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.chip {
+    border: none;
+    border-radius: 12px;
+    padding: 4px 9px;
+    background: #efe3d2;
+    color: #6b4a2b;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.chip.ativo {
+    background: var(--marrom);
+    color: white;
+}
+
+#lista-ranking {
+    list-style: none;
+}
+
+#lista-ranking li {
+    display: flex;
+    gap: 8px;
+    padding: 6px 4px;
+    border-bottom: 1px solid #efe3d2;
+}
+
+#lista-ranking li.eu {
+    background: rgba(139, 69, 19, 0.1);
+    border-radius: 6px;
+    font-weight: bold;
+}
+
+#lista-ranking .posicao {
+    width: 26px;
+    text-align: center;
+}
+
+#lista-ranking .nick {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#lista-ranking .vazio {
+    color: #a8927a;
+    font-style: italic;
+    border: none;
+}
+
+#meus-numeros {
+    margin-top: 12px;
+    font-size: 12px;
+    color: #6b4a2b;
+    line-height: 1.7;
+}
+
+/* --- GARÇOM --- */
+#garcom {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.garcom-caixa {
+    position: relative;
+    width: min(460px, 94vw);
+    background: var(--creme);
+    border-radius: 18px;
+    padding: 18px 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+#garcom-jogo,
+#garcom-fim {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+#garcom-sair {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    color: #7a6550;
+}
+
+.garcom-topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    color: var(--marrom);
+    font-size: 15px;
+    padding-right: 22px;
+}
+
+#garcom-tempo.acabando {
+    color: #c0392b;
+    animation: chamar 0.5s ease-in-out infinite;
+}
+
+.garcom-cliente {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: white;
+    border-radius: 14px;
+    padding: 10px 14px;
+    border: 2px solid #e3d3bd;
+}
+
+.garcom-cliente.certo {
+    animation: pedido-certo 0.5s ease-out;
+}
+
+#garcom-cliente-emoji {
+    font-size: 48px;
+}
+
+.garcom-itens {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 30px;
+    min-height: 40px;
+}
+
+#garcom-pedido::before {
+    content: 'Quero:';
+    font-size: 13px;
+    color: #7a6550;
+    font-weight: bold;
+}
+
+.garcom-bandeja {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #e8d8c0;
+    border-radius: 30px;
+    padding: 6px 14px;
+    min-height: 54px;
+    font-size: 13px;
+    color: #6b4a2b;
+    font-weight: bold;
+}
+
+.garcom-bandeja.errado {
+    animation: tremer 0.3s linear;
+    background: #f5b7b1;
+}
+
+#garcom-bandeja span {
+    cursor: pointer;
+}
+
+#garcom-cardapio {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+#garcom-cardapio button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 4px;
+    border: 2px solid #e3d3bd;
+    border-radius: 12px;
+    background: white;
+    font-size: 28px;
+    transition: transform 0.1s, border-color 0.1s;
+}
+
+#garcom-cardapio button:hover {
+    border-color: var(--marrom);
+    transform: translateY(-2px);
+}
+
+#garcom-cardapio button small {
+    font-size: 11px;
+    color: #7a6550;
+    font-weight: bold;
+}
+
+.garcom-acoes {
+    display: flex;
+    gap: 10px;
+}
+
+.garcom-acoes button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 15px;
+    background: #e3d3bd;
+    color: #6b4a2b;
+}
+
+#garcom-entregar,
+#garcom-denovo {
+    background: #27ae60;
+    color: white;
+}
+
+.garcom-dica {
+    font-size: 11px;
+    color: #a8927a;
+    text-align: center;
+}
+
+#garcom-resultado {
+    text-align: center;
+    font-size: 18px;
+    color: var(--marrom);
+    line-height: 1.6;
+}
+
+@keyframes moedas-subir {
+    0% { opacity: 0; translate: -50% 10px; }
+    15% { opacity: 1; translate: -50% 0; }
+    100% { opacity: 0; translate: -50% -45px; }
+}
+
+@keyframes moeda-pulo {
+    0%, 100% { scale: 1; }
+    40% { scale: 1.2; }
+}
+
+@keyframes pedido-certo {
+    from { background: #c8f7c5; }
+    to { background: white; }
+}
+
+@media (max-width: 700px) {
+    #hud-moedas {
+        top: 56px;
+        left: 10px;
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+
+    #quiz-banner {
+        top: 96px;
+        font-size: 13px;
+    }
+}

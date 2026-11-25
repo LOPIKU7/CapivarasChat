@@ -2,7 +2,10 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const perfis = require('./perfis');
 const criarPescaria = require('./minigames/pescaria');
+const criarGarcom = require('./minigames/garcom');
+const criarQuiz = require('./minigames/quiz');
 
 const app = express();
 const server = http.createServer(app);
@@ -23,16 +26,20 @@ const HISTORICO_POR_SALA = 30;
 const INTERVALO_MIN_CHAT_MS = 700; // anti-spam: 1 mensagem a cada 0,7s
 const TEMPO_CONGELADO_MS = 3000;   // quanto tempo fica congelado ao levar uma bola de neve
 const RECARGA_BOLA_MS = 800;       // intervalo mínimo entre duas bolas do mesmo jogador
+const MOEDAS_POR_ACERTO = 2;       // bola de neve
+const ESPERA_MOEDAS_MESMO_ALVO_MS = 30000; // acertar a mesma capivara de novo só dá moedas depois disso
+const MOEDAS_POR_PEDIDO = 3;       // garçom
+const MOEDAS_QUIZ = 10;
 const EMOTES = ['mortal', 'acenar', 'dancar', 'pular', 'coracao', 'risada', 'dormir'];
 
 // Salas disponíveis. Posições são em % da tela, no ponto das patas da capivara.
 // minY = até onde a capivara pode subir; spawn = onde ela aparece ao chegar pela barra de salas;
-// bolaDeNeve = se dá para jogar bola de neve na sala; pesca = se tem pescaria.
+// bolaDeNeve = se dá para jogar bola de neve na sala; pesca/garcom/quiz = minigame da sala.
 const SALAS = {
-    centro:    { id: 'centro',    nome: 'Centro',    minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: true },
+    centro:    { id: 'centro',    nome: 'Centro',    minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: true, quiz: true },
     parque:    { id: 'parque',    nome: 'Parque',    minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: true },
     praia:     { id: 'praia',     nome: 'Praia',     minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: true, pesca: true },
-    cafeteria: { id: 'cafeteria', nome: 'Cafeteria', minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: false },
+    cafeteria: { id: 'cafeteria', nome: 'Cafeteria', minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: false, garcom: true },
 };
 const SALA_INICIAL = 'centro';
 
@@ -110,7 +117,29 @@ function publico(j) {
         id: j.id, nick: j.nick, cor: j.cor, x: j.x, y: j.y, direcao: j.direcao,
         congelado: Math.max(0, j.congeladoAte - Date.now()), // ms que ainda faltam
         pescando: pescaria.estaPescando(j),
+        atividade: garcom.estaJogando(j) ? '🍽️' : null,
     };
+}
+
+function perfilPublico(p) {
+    const { nick, moedas, acertos, peixes, pedidos, quiz, recordeGarcom } = p;
+    return { nick, moedas, acertos, peixes, pedidos, quiz, recordeGarcom };
+}
+
+/**
+ * Dá moedas e/ou soma uma estatística no perfil do jogador.
+ * @param {object} jogador
+ * @param {{ moedas?: number, campo?: string, qtd?: number }} premio
+ */
+function recompensar(jogador, { moedas = 0, campo = null, qtd = 1 }) {
+    const perfil = jogador.perfil;
+    perfil.moedas += moedas;
+    if (campo) perfil[campo] += qtd;
+    perfis.salvar();
+
+    const socket = io.sockets.sockets.get(jogador.id);
+    if (socket) socket.emit('perfil', perfilPublico(perfil));
+    if (moedas > 0) io.to(jogador.sala).emit('ganhouMoedas', { id: jogador.id, qtd: moedas });
 }
 
 function registrarNoHistorico(salaId, item) {
@@ -119,8 +148,8 @@ function registrarNoHistorico(salaId, item) {
     if (lista.length > HISTORICO_POR_SALA) lista.shift();
 }
 
-function mensagemSistema(salaId, texto) {
-    const item = { tipo: 'sistema', texto, hora: Date.now() };
+function mensagemSistema(salaId, texto, tipo = 'sistema') {
+    const item = { tipo, texto, hora: Date.now() };
     registrarNoHistorico(salaId, item);
     io.to(salaId).emit('mensagem', item);
 }
@@ -128,7 +157,37 @@ function mensagemSistema(salaId, texto) {
 // ==========================================
 // MINIGAMES
 // ==========================================
-const pescaria = criarPescaria({ io, jogadores, mensagemSistema, estaCongelado });
+const pescaria = criarPescaria({
+    io, jogadores, mensagemSistema, estaCongelado,
+    aoPescar: (jogador, peixe) => recompensar(jogador, {
+        moedas: peixe.valor,
+        campo: peixe.id === 'bota' ? null : 'peixes', // bota velha não conta como peixe 😅
+    }),
+});
+
+const garcom = criarGarcom({
+    io, jogadores, mensagemSistema,
+    aoTerminar: (jogador, entregues) => {
+        const moedas = entregues * MOEDAS_POR_PEDIDO;
+        jogador.perfil.recordeGarcom = Math.max(jogador.perfil.recordeGarcom, entregues);
+        recompensar(jogador, { moedas, campo: 'pedidos', qtd: entregues });
+        return { moedas, recorde: jogador.perfil.recordeGarcom };
+    },
+});
+
+const quiz = criarQuiz({
+    io, jogadores, mensagemSistema,
+    aoAcertar: (jogador) => {
+        recompensar(jogador, { moedas: MOEDAS_QUIZ, campo: 'quiz' });
+        return MOEDAS_QUIZ;
+    },
+});
+
+// Andar/trocar de sala/sair cancela o que o jogador estiver fazendo
+function interromperMinigames(jogador, { garcomTambem = true } = {}) {
+    pescaria.interromper(jogador);
+    if (garcomTambem) garcom.interromper(jogador);
+}
 
 function colocarNaSala(socket, jogador, salaId, posicaoPedida) {
     const pos = posicaoNaSala(salaId, posicaoPedida);
@@ -143,6 +202,7 @@ function colocarNaSala(socket, jogador, salaId, posicaoPedida) {
         sala: SALAS[salaId],
         jogadores: jogadoresDaSala(salaId).map(publico),
         historico: historico[salaId],
+        quiz: salaId === quiz.SALA ? quiz.estado() : null,
     };
 }
 
@@ -163,6 +223,14 @@ io.on('connection', (socket) => {
     socket.emit('salas', { salas: Object.values(SALAS), contagem: contagemSalas() });
 
     pescaria.registrar(socket);
+    garcom.registrar(socket);
+    quiz.registrar(socket);
+
+    socket.on('pedirRanking', (responder) => {
+        const jogador = jogadores.get(socket.id);
+        if (typeof responder !== 'function' || !jogador) return;
+        responder({ categorias: perfis.ranking(10), eu: perfilPublico(jogador.perfil) });
+    });
 
     socket.on('entrar', (dados, responder) => {
         if (typeof responder !== 'function') return;
@@ -186,11 +254,16 @@ io.on('connection', (socket) => {
             ultimoChat: 0,
             ultimaBola: 0,
             congeladoAte: 0,
+            moedasPorAlvo: new Map(), // nick do alvo -> última vez que ganhou moedas acertando ele
+            perfil: perfis.obter(nick),
         };
         jogadores.set(socket.id, jogador);
 
         const estado = colocarNaSala(socket, jogador, salaId, dados?.posicao);
-        responder({ ok: true, eu: publico(jogador), salas: Object.values(SALAS), ...estado });
+        responder({
+            ok: true, eu: publico(jogador), salas: Object.values(SALAS),
+            perfil: perfilPublico(jogador.perfil), ...estado,
+        });
         enviarContagemSalas();
         console.log(`${nick} entrou em ${salaId}`);
     });
@@ -205,7 +278,7 @@ io.on('connection', (socket) => {
         if (x !== jogador.x) jogador.direcao = x > jogador.x ? 1 : -1;
         jogador.x = x;
         jogador.y = y;
-        pescaria.interromper(jogador);
+        interromperMinigames(jogador, { garcomTambem: false });
 
         socket.to(jogador.sala).emit('jogadorMoveu', { id: jogador.id, x, y, direcao: jogador.direcao });
     });
@@ -227,6 +300,7 @@ io.on('connection', (socket) => {
         const item = { tipo: 'chat', id: jogador.id, nick: jogador.nick, cor: jogador.cor, texto: mensagem, hora: agora };
         registrarNoHistorico(jogador.sala, item);
         io.to(jogador.sala).emit('mensagem', item);
+        quiz.aoChat(jogador, mensagem);
     });
 
     socket.on('digitando', (estaDigitando) => {
@@ -256,7 +330,7 @@ io.on('connection', (socket) => {
         if (!jogador || !SALAS[salaId] || salaId === jogador.sala) return responder({ ok: false });
         if (estaCongelado(jogador)) return responder({ ok: false, erro: 'Você está congelado! ❄️' });
 
-        pescaria.interromper(jogador);
+        interromperMinigames(jogador);
         tirarDaSala(socket, jogador, `${jogador.nick} foi para ${SALAS[salaId].nome}`);
         const estado = colocarNaSala(socket, jogador, salaId, dados.posicao);
         responder({ ok: true, eu: publico(jogador), ...estado });
@@ -308,6 +382,13 @@ io.on('connection', (socket) => {
         pescaria.interromper(jogador);
 
         const atirador = jogadores.get(bola.de);
+        if (atirador) {
+            // Placar: todo acerto conta; moedas só se não acertou essa mesma capivara há pouco
+            const ultima = atirador.moedasPorAlvo.get(jogador.nick) || 0;
+            const ganhaMoedas = Date.now() - ultima >= ESPERA_MOEDAS_MESMO_ALVO_MS;
+            if (ganhaMoedas) atirador.moedasPorAlvo.set(jogador.nick, Date.now());
+            recompensar(atirador, { moedas: ganhaMoedas ? MOEDAS_POR_ACERTO : 0, campo: 'acertos' });
+        }
         io.to(jogador.sala).emit('congelado', {
             id: jogador.id,
             x, y,
@@ -322,12 +403,20 @@ io.on('connection', (socket) => {
         console.log(`Capivara desconectou: ${socket.id}`);
         if (!jogador) return;
 
-        pescaria.interromper(jogador);
+        interromperMinigames(jogador);
         jogadores.delete(socket.id);
         tirarDaSala(socket, jogador, `${jogador.nick} saiu do jogo`);
         enviarContagemSalas();
     });
 });
+
+// Salva os perfis antes de desligar (o Render manda SIGTERM ao reiniciar)
+for (const sinal of ['SIGINT', 'SIGTERM']) {
+    process.on(sinal, () => {
+        perfis.salvarAgora();
+        process.exit(0);
+    });
+}
 
 server.listen(PORTA, () => {
     console.log(`Servidor do CapivarasChat rodando em http://localhost:${PORTA}`);

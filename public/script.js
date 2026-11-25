@@ -179,6 +179,7 @@ function entrarNoJogo() {
         telaLogin.style.display = 'none';
         document.body.classList.add('em-jogo');
         inputCorJogo.value = dados.cor;
+        atualizarPerfil(resposta.perfil);
         // O painel começa fechado para não tapar as saídas das salas,
         // a não ser que a pessoa tenha deixado aberto da última vez (e não esteja no celular)
         const celular = window.matchMedia('(max-width: 700px)').matches;
@@ -211,7 +212,10 @@ function carregarSala(resposta) {
     btnBola.hidden = !salaAtual.bolaDeNeve;
     if (!salaAtual.bolaDeNeve) alternarMira(false);
     estadoPesca = null; // trocar de sala cancela a pescaria
+    if (garcom) { clearInterval(garcom.timer); garcom = null; }
+    garcomEl.hidden = true;
     atualizarBotaoMinigame();
+    mostrarQuiz(resposta.quiz);
     resposta.jogadores.forEach(adicionarJogador);
     // Se nasceu em cima de uma porta, ela só vale depois de sair e entrar de novo
     portasDentro = portasTocando();
@@ -361,10 +365,14 @@ function adicionarJogador(dados) {
     const boia = document.createElement('div');
     boia.className = 'boia';
 
-    el.append(balao, digitando, emote, sprite, gelo, vara, boia, nome);
+    const atividade = document.createElement('div');
+    atividade.className = 'icone-atividade';
+    atividade.textContent = dados.atividade || '';
+
+    el.append(balao, digitando, emote, sprite, gelo, vara, boia, atividade, nome);
     camadaJogadores.appendChild(el);
 
-    const jogador = { dados: { ...dados }, el, sprite, balao, digitando, emote, timers: {} };
+    const jogador = { dados: { ...dados }, el, sprite, balao, digitando, emote, atividade, timers: {} };
     jogadores.set(dados.id, jogador);
 
     aplicarCor(sprite, dados.cor);
@@ -640,17 +648,31 @@ socket.on('congelado', ({ id, x, y, duracao, porId, porNick }) => {
 const btnMinigame = $('btn-minigame');
 let estadoPesca = null; // null | 'esperando' | 'mordeu'
 
+// Cada sala tem seu minigame: 🎣 Praia, ☕ Cafeteria, 🧠 Centro
 function atualizarBotaoMinigame() {
-    const temPesca = Boolean(salaAtual && salaAtual.pesca);
-    btnMinigame.hidden = !temPesca;
-    if (!temPesca) return;
+    btnMinigame.classList.remove('esperando', 'mordeu');
+    btnMinigame.hidden = !salaAtual || !(salaAtual.pesca || salaAtual.garcom || salaAtual.quiz);
+    if (btnMinigame.hidden) return;
 
-    btnMinigame.classList.toggle('esperando', estadoPesca === 'esperando');
-    btnMinigame.classList.toggle('mordeu', estadoPesca === 'mordeu');
-    btnMinigame.textContent =
-        estadoPesca === 'mordeu' ? '❗ PUXAR!' :
-        estadoPesca === 'esperando' ? '🎣 Esperando a mordida...' :
-        '🎣 Pescar';
+    if (salaAtual.pesca) {
+        btnMinigame.classList.toggle('esperando', estadoPesca === 'esperando');
+        btnMinigame.classList.toggle('mordeu', estadoPesca === 'mordeu');
+        btnMinigame.textContent =
+            estadoPesca === 'mordeu' ? '❗ PUXAR!' :
+            estadoPesca === 'esperando' ? '🎣 Esperando a mordida...' :
+            '🎣 Pescar';
+    } else if (salaAtual.garcom) {
+        btnMinigame.textContent = '☕ Ser garçom';
+    } else if (salaAtual.quiz) {
+        btnMinigame.textContent = '🧠 Chamar quiz';
+    }
+}
+
+function acaoMinigame() {
+    if (!salaAtual) return;
+    if (salaAtual.pesca) acaoPesca();
+    else if (salaAtual.garcom) iniciarGarcom();
+    else if (salaAtual.quiz) chamarQuiz();
 }
 
 function acaoPesca() {
@@ -670,7 +692,7 @@ function acaoPesca() {
     });
 }
 
-btnMinigame.addEventListener('click', acaoPesca);
+btnMinigame.addEventListener('click', acaoMinigame);
 
 // Espaço também puxa a vara (quando não está digitando)
 document.addEventListener('keydown', (e) => {
@@ -717,7 +739,7 @@ socket.on('pescaFim', ({ id, peixe, motivo }) => {
     if (peixe) {
         mostrarToast(peixe.id === 'bota'
             ? 'Você pescou uma 👢 Bota velha... 😅'
-            : `Você pescou: ${peixe.emoji} ${peixe.nome}!${peixe.raro ? ' Que raro! ✨' : ''}`);
+            : `Você pescou: ${peixe.emoji} ${peixe.nome}! +${peixe.valor} 💰${peixe.raro ? ' Que raro! ✨' : ''}`);
     } else if (motivo === 'cedo') {
         mostrarToast('Puxou cedo demais! O peixe fugiu 🐟💨');
     } else if (motivo === 'tarde') {
@@ -726,6 +748,323 @@ socket.on('pescaFim', ({ id, peixe, motivo }) => {
         mostrarToast('Você guardou a vara de pesca.');
     }
 });
+
+// ==========================================
+// MOEDAS E PERFIL
+// ==========================================
+const hudMoedas = $('hud-moedas');
+const qtdMoedas = $('qtd-moedas');
+let meuPerfil = null;
+
+function atualizarPerfil(perfil) {
+    if (!perfil) return;
+    const ganhou = meuPerfil && perfil.moedas > meuPerfil.moedas;
+    meuPerfil = perfil;
+    qtdMoedas.textContent = perfil.moedas;
+    if (ganhou) {
+        hudMoedas.classList.remove('ganhou');
+        void hudMoedas.offsetWidth;
+        hudMoedas.classList.add('ganhou');
+    }
+    if (!painelRanking.hidden) pedirRanking();
+}
+
+socket.on('perfil', atualizarPerfil);
+
+// "+3 💰" subindo em cima de quem ganhou moedas (todo mundo na sala vê)
+socket.on('ganhouMoedas', ({ id, qtd }) => {
+    const jogador = jogadores.get(id);
+    if (!jogador) return;
+    const el = document.createElement('div');
+    el.className = 'moedas-flutuante';
+    el.textContent = `+${qtd} 💰`;
+    jogador.el.appendChild(el);
+    setTimeout(() => el.remove(), 1400);
+});
+
+// Ícone do que a capivara está fazendo (ex.: 🍽️ garçom)
+socket.on('atividade', ({ id, icone }) => {
+    const jogador = jogadores.get(id);
+    if (jogador) jogador.atividade.textContent = icone || '';
+});
+
+hudMoedas.addEventListener('click', () => abrirPainel('ranking'));
+
+// ==========================================
+// RANKING
+// ==========================================
+const painelRanking = $('painel-ranking');
+const rankingCategorias = $('ranking-categorias');
+const listaRanking = $('lista-ranking');
+const meusNumeros = $('meus-numeros');
+
+const CATEGORIAS_RANKING = [
+    { campo: 'moedas', nome: '💰 Moedas' },
+    { campo: 'acertos', nome: '❄️ Bolas' },
+    { campo: 'peixes', nome: '🎣 Peixes' },
+    { campo: 'pedidos', nome: '☕ Pedidos' },
+    { campo: 'quiz', nome: '🧠 Quiz' },
+];
+let categoriaRanking = 'moedas';
+let ultimoRanking = null;
+
+function pedirRanking() {
+    socket.emit('pedirRanking', (dados) => {
+        ultimoRanking = dados;
+        atualizarPerfil(dados.eu);
+        renderizarRanking();
+    });
+}
+
+function renderizarRanking() {
+    rankingCategorias.replaceChildren(...CATEGORIAS_RANKING.map(({ campo, nome }) => {
+        const chip = document.createElement('button');
+        chip.className = 'chip' + (campo === categoriaRanking ? ' ativo' : '');
+        chip.textContent = nome;
+        chip.addEventListener('click', () => {
+            categoriaRanking = campo;
+            renderizarRanking();
+        });
+        return chip;
+    }));
+
+    if (!ultimoRanking) return;
+    const lista = ultimoRanking.categorias[categoriaRanking] || [];
+    const medalhas = ['🥇', '🥈', '🥉'];
+    if (lista.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'vazio';
+        li.textContent = 'Ninguém pontuou aqui ainda. Seja o primeiro!';
+        listaRanking.replaceChildren(li);
+    } else {
+        listaRanking.replaceChildren(...lista.map((item, i) => {
+            const li = document.createElement('li');
+            if (meuPerfil && item.nick.toLowerCase() === meuPerfil.nick.toLowerCase()) li.className = 'eu';
+            const posicao = document.createElement('span');
+            posicao.className = 'posicao';
+            posicao.textContent = medalhas[i] || `${i + 1}º`;
+            const nick = document.createElement('span');
+            nick.className = 'nick';
+            nick.textContent = item.nick;
+            const valor = document.createElement('strong');
+            valor.textContent = item.valor;
+            li.append(posicao, nick, valor);
+            return li;
+        }));
+    }
+
+    const p = ultimoRanking.eu;
+    meusNumeros.textContent =
+        `Você: 💰 ${p.moedas} moedas · ❄️ ${p.acertos} acertos · 🎣 ${p.peixes} peixes · ` +
+        `☕ ${p.pedidos} pedidos (recorde ${p.recordeGarcom}) · 🧠 ${p.quiz} quiz`;
+}
+
+// ==========================================
+// QUIZ (Centro)
+// ==========================================
+const quizBanner = $('quiz-banner');
+const quizPergunta = $('quiz-pergunta');
+const quizProgresso = $('quiz-progresso');
+let timerQuizBanner;
+
+function mostrarQuiz(estado) {
+    clearTimeout(timerQuizBanner);
+    if (!estado || !salaAtual || !salaAtual.quiz) {
+        quizBanner.hidden = true;
+        return;
+    }
+    quizBanner.classList.remove('resultado');
+    quizPergunta.textContent = estado.pergunta + ' (responda no chat)';
+    quizBanner.hidden = false;
+
+    // Barra de tempo diminuindo até zero
+    quizProgresso.style.transition = 'none';
+    quizProgresso.style.width = `${(estado.restante / estado.duracao) * 100}%`;
+    void quizProgresso.offsetWidth;
+    quizProgresso.style.transition = `width ${estado.restante}ms linear`;
+    quizProgresso.style.width = '0%';
+}
+
+socket.on('quiz', mostrarQuiz);
+
+socket.on('quizFim', ({ vencedor, resposta }) => {
+    if (!salaAtual || !salaAtual.quiz) return;
+    quizBanner.classList.add('resultado');
+    quizPergunta.textContent = vencedor
+        ? `🏆 ${vencedor} acertou! Resposta: ${resposta}`
+        : `⏰ Ninguém acertou. A resposta era: ${resposta}`;
+    quizBanner.hidden = false;
+    clearTimeout(timerQuizBanner);
+    timerQuizBanner = setTimeout(() => { quizBanner.hidden = true; }, 5000);
+});
+
+function chamarQuiz() {
+    socket.emit('quizAgora', (resposta) => {
+        if (!resposta.ok && resposta.erro) mostrarToast(resposta.erro);
+    });
+}
+
+// ==========================================
+// GARÇOM (Cafeteria)
+// ==========================================
+const CARDAPIO_EMOJI = {
+    cafe: { emoji: '☕', nome: 'Café' },
+    suco: { emoji: '🧃', nome: 'Suco' },
+    bolo: { emoji: '🍰', nome: 'Bolo' },
+    croissant: { emoji: '🥐', nome: 'Croissant' },
+    biscoito: { emoji: '🍪', nome: 'Biscoito' },
+    cha: { emoji: '🍵', nome: 'Chá' },
+};
+const MAX_BANDEJA = 6;
+
+const garcomEl = $('garcom');
+const garcomJogo = $('garcom-jogo');
+const garcomFim = $('garcom-fim');
+const garcomTempo = $('garcom-tempo');
+const garcomPlacar = $('garcom-placar');
+const garcomClienteEmoji = $('garcom-cliente-emoji');
+const garcomClienteCaixa = document.querySelector('.garcom-cliente');
+const garcomPedido = $('garcom-pedido');
+const garcomBandejaCaixa = document.querySelector('.garcom-bandeja');
+const garcomBandeja = $('garcom-bandeja');
+const garcomCardapio = $('garcom-cardapio');
+const garcomResultado = $('garcom-resultado');
+
+let garcom = null; // { cardapio, bandeja, fim, timer, entregando }
+
+function iniciarGarcom() {
+    socket.emit('garcomIniciar', (resposta) => {
+        if (!resposta.ok) {
+            if (resposta.erro) mostrarToast(resposta.erro);
+            return;
+        }
+        garcom = { cardapio: resposta.cardapio, bandeja: [], fim: Date.now() + resposta.duracao, entregando: false };
+        garcomEl.hidden = false;
+        garcomJogo.hidden = false;
+        garcomFim.hidden = true;
+        garcomPlacar.textContent = '✅ 0';
+
+        garcomCardapio.replaceChildren(...garcom.cardapio.map((id, i) => {
+            const btn = document.createElement('button');
+            btn.title = `${CARDAPIO_EMOJI[id].nome} (tecla ${i + 1})`;
+            btn.append(CARDAPIO_EMOJI[id].emoji);
+            const nome = document.createElement('small');
+            nome.textContent = `${i + 1}. ${CARDAPIO_EMOJI[id].nome}`;
+            btn.appendChild(nome);
+            btn.addEventListener('click', () => colocarNaBandeja(id));
+            return btn;
+        }));
+
+        mostrarPedido(resposta.pedido);
+        atualizarTempoGarcom();
+        garcom.timer = setInterval(atualizarTempoGarcom, 250);
+    });
+}
+
+function atualizarTempoGarcom() {
+    if (!garcom) return;
+    const restante = Math.max(0, Math.ceil((garcom.fim - Date.now()) / 1000));
+    garcomTempo.textContent = `⏱️ ${restante}s`;
+    garcomTempo.classList.toggle('acabando', restante <= 10);
+}
+
+function mostrarPedido(pedido) {
+    garcomClienteEmoji.textContent = pedido.cliente;
+    garcomPedido.replaceChildren(...pedido.itens.map((id) => {
+        const span = document.createElement('span');
+        span.textContent = CARDAPIO_EMOJI[id].emoji;
+        span.title = CARDAPIO_EMOJI[id].nome;
+        return span;
+    }));
+    garcom.bandeja = [];
+    renderizarBandeja();
+}
+
+function renderizarBandeja() {
+    garcomBandeja.replaceChildren(...garcom.bandeja.map((id, i) => {
+        const span = document.createElement('span');
+        span.textContent = CARDAPIO_EMOJI[id].emoji;
+        span.title = 'Clique para tirar';
+        span.addEventListener('click', () => {
+            garcom.bandeja.splice(i, 1);
+            renderizarBandeja();
+        });
+        return span;
+    }));
+}
+
+function colocarNaBandeja(id) {
+    if (!garcom || garcom.bandeja.length >= MAX_BANDEJA) return;
+    garcom.bandeja.push(id);
+    renderizarBandeja();
+}
+
+function entregarPedido() {
+    if (!garcom || garcom.entregando || garcom.bandeja.length === 0) return;
+    garcom.entregando = true;
+    socket.emit('garcomEntregar', garcom.bandeja, (resposta) => {
+        if (!garcom) return;
+        garcom.entregando = false;
+        if (!resposta.ok) return;
+        if (resposta.certo) {
+            garcomPlacar.textContent = `✅ ${resposta.entregues}`;
+            garcomClienteCaixa.classList.remove('certo');
+            void garcomClienteCaixa.offsetWidth;
+            garcomClienteCaixa.classList.add('certo');
+            mostrarPedido(resposta.pedido);
+        } else {
+            garcomBandejaCaixa.classList.remove('errado');
+            void garcomBandejaCaixa.offsetWidth;
+            garcomBandejaCaixa.classList.add('errado');
+            setTimeout(() => garcomBandejaCaixa.classList.remove('errado'), 300);
+        }
+    });
+}
+
+socket.on('garcomFim', ({ entregues, moedas, recorde }) => {
+    if (garcom) clearInterval(garcom.timer);
+    garcom = null;
+    garcomJogo.hidden = true;
+    garcomFim.hidden = false;
+    garcomEl.hidden = false;
+    const plural = entregues === 1 ? 'pedido' : 'pedidos';
+    garcomResultado.textContent = `Fim do turno! ☕\nVocê atendeu ${entregues} ${plural} e ganhou ${moedas} 💰.\nSeu recorde: ${recorde}`;
+    garcomResultado.style.whiteSpace = 'pre-line';
+});
+
+function fecharGarcom() {
+    if (garcom) socket.emit('garcomSair'); // o servidor manda 'garcomFim' com o resultado
+    else garcomEl.hidden = true;
+}
+
+$('garcom-entregar').addEventListener('click', entregarPedido);
+$('garcom-limpar').addEventListener('click', () => {
+    if (!garcom) return;
+    garcom.bandeja = [];
+    renderizarBandeja();
+});
+$('garcom-sair').addEventListener('click', fecharGarcom);
+$('garcom-fechar').addEventListener('click', () => { garcomEl.hidden = true; });
+$('garcom-denovo').addEventListener('click', iniciarGarcom);
+
+// Atalhos do garçom (capturados antes dos outros atalhos do jogo)
+window.addEventListener('keydown', (e) => {
+    if (garcomEl.hidden) return;
+    if (e.key === 'Escape') {
+        fecharGarcom();
+    } else if (garcom && /^[1-6]$/.test(e.key)) {
+        colocarNaBandeja(garcom.cardapio[Number(e.key) - 1]);
+    } else if (garcom && e.key === 'Backspace') {
+        garcom.bandeja.pop();
+        renderizarBandeja();
+    } else if (garcom && e.key === 'Enter') {
+        entregarPedido();
+    } else {
+        return;
+    }
+    e.preventDefault();
+    e.stopImmediatePropagation();
+}, true);
 
 // ==========================================
 // 5. CHAT (BALÃO + HISTÓRICO)
@@ -785,16 +1124,21 @@ function executarComando(texto) {
     } else if (comando === 'portas') {
         const ligado = jogoContainer.classList.toggle('debug-portas');
         mostrarToast(ligado ? 'Mostrando as áreas das portas' : 'Áreas das portas escondidas');
+    } else if (comando === 'quiz') {
+        chamarQuiz();
+    } else if (comando === 'ranking') {
+        abrirPainel('ranking');
     } else if (comando === 'limpar') {
         listaMensagens.replaceChildren();
     } else if (comando === 'ajuda') {
         adicionarMensagemLog({
             tipo: 'sistema',
             hora: Date.now(),
-            texto: `Comandos: ${Object.keys(EMOJI_EMOTES).map((c) => '/' + c).join(', ')}, /limpar, /portas, /ajuda. ` +
+            texto: `Comandos: ${Object.keys(EMOJI_EMOTES).map((c) => '/' + c).join(', ')}, /quiz, /ranking, /limpar, /portas, /ajuda. ` +
                 'Clique no chão para andar, ande até as saídas para trocar de sala e use Enter para falar. ' +
                 'Bola de neve: botão direito do mouse, ou ❄️ / tecla B para mirar. ' +
-                'Na Praia, chegue perto da água e clique em 🎣 Pescar (Espaço também puxa).',
+                'Minigames: 🎣 pescaria na Praia, ☕ garçom na Cafeteria, 🧠 quiz no Centro e guerra de bolas de neve. ' +
+                'Tudo dá moedas 💰: veja o ranking clicando nas suas moedas.',
         });
         abrirPainel('chat');
     } else {
@@ -935,7 +1279,12 @@ function abrirPainel(aba) {
     document.querySelectorAll('.aba').forEach((a) => a.classList.toggle('ativa', a.dataset.aba === aba));
     listaMensagens.hidden = aba !== 'chat';
     listaOnline.hidden = aba !== 'online';
+    painelRanking.hidden = aba !== 'ranking';
     if (aba === 'chat') listaMensagens.scrollTop = listaMensagens.scrollHeight;
+    if (aba === 'ranking') {
+        renderizarRanking();
+        pedirRanking();
+    }
 }
 
 btnFecharPainel.addEventListener('click', () => fecharPainel());
@@ -974,6 +1323,7 @@ socket.on('connect', () => {
         }
         statusConexao.hidden = true;
         meusDados.nick = resposta.eu.nick;
+        atualizarPerfil(resposta.perfil);
         carregarSala(resposta);
         mostrarToast('Reconectado!');
     });

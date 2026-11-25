@@ -23,15 +23,28 @@ A porta pode ser trocada com a variável de ambiente `PORT`.
 - **Balão de fala** em cima da cabeça (15 s) e indicador de **"digitando..."**.
 - **Histórico do chat** com horário, entradas/saídas e as últimas 30 mensagens de cada sala para quem chega.
 - **Lista de quem está online** na sala.
+### Minigames 🎮
+
+Todos dão **moedas 💰**, que aparecem no canto da tela. Clicando nelas abre o **ranking** 🏆
+(moedas, acertos de bola de neve, peixes, pedidos e quiz). Moedas e números ficam salvos por nick.
+
 - **Guerra de bolas de neve** ❄️: botão direito do mouse joga uma bola (ou ❄️ / tecla `B` para entrar no modo mira).
   Quem for atingido fica **congelado por 3 segundos** dentro de um bloco de gelo, sem poder andar nem jogar.
-  Funciona em todas as salas menos na Cafeteria.
+  Funciona em todas as salas menos na Cafeteria. Cada acerto conta no ranking e dá +2 💰
+  (acertar a mesma capivara de novo só dá moedas depois de 30 s).
 - **Pescaria** 🎣 (Praia): chegue perto da água e clique em **Pescar**. Quando a boia afundar (❗), clique em
   **PUXAR!** (ou aperte Espaço) em até 1 segundo. Puxar cedo ou tarde demais faz o peixe fugir. Tem 9 tipos de
-  peixe, dos comuns aos raros 🦑🐙🦈 (peixes raros são anunciados no chat da sala).
+  peixe, dos comuns aos raros 🦑🐙🦈 (peixes raros são anunciados no chat da sala). Cada peixe vale de 3 a 25 💰.
+- **Garçom** ☕ (Cafeteria): clique em **Ser garçom** e atenda o máximo de clientes em 60 segundos, montando a
+  bandeja com o pedido de cada um (teclas 1–6, Enter entrega). Os pedidos vão ficando maiores. +3 💰 por pedido.
+- **Quiz** 🧠 (Centro): de tempos em tempos aparece uma pergunta. Quem responder certo primeiro no chat ganha +10 💰.
+  Também dá para chamar uma pergunta com o botão **Chamar quiz** ou `/quiz`.
+
+### Outras funcionalidades
+
 - **Emotes**: 🔄 mortal, 👋 acenar, 💃 dançar, ⬆️ pular, ❤️ coração, 😂 risada, 💤 dormir (pelos botões ou digitando `/mortal`, `/dancar`...).
 - **Cor da capivara** personalizável no login e durante o jogo.
-- **Comandos de chat**: `/ajuda`, `/limpar`, `/portas` (mostra as áreas das portas, útil para ajustar as coordenadas) e os emotes.
+- **Comandos de chat**: `/ajuda`, `/quiz`, `/ranking`, `/limpar`, `/portas` (mostra as áreas das portas, útil para ajustar as coordenadas) e os emotes.
 - Nick, cor e última sala ficam salvos no navegador.
 - Reconexão automática se a conexão cair.
 - Funciona no celular (toque para andar).
@@ -47,8 +60,11 @@ A porta pode ser trocada com a variável de ambiente `PORT`.
 
 ```
 server.js          # servidor Express + Socket.IO (salas, jogadores, chat)
+perfis.js          # moedas e estatísticas por nick (salvos em data/perfis.json)
 minigames/
   pescaria.js      # pescaria da Praia (tempo e sorteio dos peixes no servidor)
+  garcom.js        # garçom da Cafeteria
+  quiz.js          # quiz do Centro (perguntas e respostas ficam aqui)
 public/
   index.html       # telas de login e do jogo
   script.js        # lógica do cliente (movimento, chat, emotes, salas)
@@ -63,3 +79,9 @@ public/
 2. Em `server.js`, adicione a sala em `SALAS` (o `minY` é até onde a capivara pode subir na tela, em %).
 3. Em `public/script.js`, adicione a sala em `CENARIOS` com o `fundo` e as `portas`
    (e uma porta em outra sala apontando para ela). Use `/portas` no chat para ver as áreas e ajustar.
+
+### Sobre o ranking no Render
+
+Os perfis são salvos em `data/perfis.json`. Em hospedagens grátis (como o Render) o disco é apagado quando o
+servidor reinicia ou é publicado de novo, então o ranking recomeça do zero nesses momentos.
+Para guardar de vez, seria preciso um disco persistente ou um banco de dados.

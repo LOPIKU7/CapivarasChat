@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CapivarasChat</title>
     <link rel="icon" href="capivara.png">
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 
@@ -57,6 +57,7 @@
     <!-- Barra inferior: emotes + chat -->
     <div id="chat-ui" class="hud">
         <div id="emotes">
+            <button id="btn-bola" title="Bola de neve: clique para mirar (atalho: B ou botão direito do mouse)">❄️</button>
             <button data-emote="mortal" title="Dar mortal (/mortal)">🔄</button>
             <button data-emote="acenar" title="Acenar (/acenar)">👋</button>
             <button data-emote="dancar" title="Dançar (/dancar)">💃</button>
@@ -75,6 +76,6 @@
     <div id="status-conexao" hidden>Reconectando...</div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js?v=3"></script>
+    <script src="script.js?v=4"></script>
 </body>
 </html>

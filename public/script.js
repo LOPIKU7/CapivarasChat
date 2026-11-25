@@ -208,6 +208,8 @@ function carregarSala(resposta) {
     marcadorDestino.classList.remove('visivel');
 
     desenharCenario(salaAtual.id);
+    btnBola.hidden = !salaAtual.bolaDeNeve;
+    if (!salaAtual.bolaDeNeve) alternarMira(false);
     resposta.jogadores.forEach(adicionarJogador);
     // Se nasceu em cima de uma porta, ela só vale depois de sair e entrar de novo
     portasDentro = portasTocando();
@@ -234,6 +236,9 @@ function desenharCenario(salaId) {
         el.style.left = porta.left;
         el.style.width = porta.width;
         el.style.height = porta.height;
+        const esquerda = parseFloat(porta.left), largura = parseFloat(porta.width);
+        if (esquerda + largura > 100) el.style.justifyContent = 'flex-start';
+        else if (esquerda < 0) el.style.justifyContent = 'flex-end';
         el.dataset.destino = porta.destino;
         el.dataset.spawnTop = porta.spawnTop;
         el.dataset.spawnLeft = porta.spawnLeft;
@@ -267,6 +272,7 @@ function trocarSala(salaId, posicao) {
     socket.emit('trocarSala', { sala: salaId, posicao }, (resposta) => {
         trocandoSala = false;
         if (resposta.ok) carregarSala(resposta);
+        else if (resposta.erro) mostrarToast(resposta.erro);
     });
 }
 
@@ -344,7 +350,10 @@ function adicionarJogador(dados) {
     nome.className = 'nome-jogador';
     nome.textContent = dados.nick;
 
-    el.append(balao, digitando, emote, sprite, nome);
+    const gelo = document.createElement('div');
+    gelo.className = 'gelo';
+
+    el.append(balao, digitando, emote, sprite, gelo, nome);
     camadaJogadores.appendChild(el);
 
     const jogador = { dados: { ...dados }, el, sprite, balao, digitando, emote, timers: {} };
@@ -353,6 +362,7 @@ function adicionarJogador(dados) {
     aplicarCor(sprite, dados.cor);
     posicionar(jogador, dados.x, dados.y, false);
     virar(jogador, dados.direcao);
+    if (dados.congelado > 0) congelar(jogador, dados.congelado);
     renderizarListaOnline();
 }
 
@@ -431,13 +441,24 @@ socket.on('jogadorMudouCor', ({ id, cor }) => {
 // ==========================================
 // 4. MOVIMENTAÇÃO (CLIQUE)
 // ==========================================
+// Ponto do clique em % da tela
+function pontoClicado(e) {
+    const rect = jogoContainer.getBoundingClientRect();
+    return {
+        x: ((e.clientX - rect.left) / rect.width) * 100,
+        y: ((e.clientY - rect.top) / rect.height) * 100,
+    };
+}
+
 jogoContainer.addEventListener('click', (e) => {
     const eu = jogadores.get(meuId);
     if (!eu) return;
+    if (modoMira) return jogarBola(e);
+    if (estaCongelado(eu)) return mostrarToast('Você está congelado! ❄️');
 
-    const rect = jogoContainer.getBoundingClientRect();
-    const x = Math.min(98, Math.max(2, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.min(99, Math.max(salaAtual.minY, ((e.clientY - rect.top) / rect.height) * 100));
+    const ponto = pontoClicado(e);
+    const x = Math.min(98, Math.max(2, ponto.x));
+    const y = Math.min(99, Math.max(salaAtual.minY, ponto.y));
 
     marcadorDestino.style.left = `${x}%`;
     marcadorDestino.style.top = `${y}%`;
@@ -447,6 +468,160 @@ jogoContainer.addEventListener('click', (e) => {
 
     moverJogador(eu, x, y);
     socket.emit('mover', { x, y });
+});
+
+// ==========================================
+// BOLA DE NEVE
+// ==========================================
+const btnBola = $('btn-bola');
+const ALTURA_MAO_PX = 55; // de onde a bola sai, acima das patas
+let modoMira = false;
+
+function podeJogarBola() {
+    return Boolean(salaAtual && salaAtual.bolaDeNeve);
+}
+
+function estaCongelado(jogador) {
+    return jogador.el.classList.contains('congelado');
+}
+
+function alternarMira(ligar = !modoMira) {
+    modoMira = ligar && podeJogarBola();
+    jogoContainer.classList.toggle('mirando', modoMira);
+    btnBola.classList.toggle('ativo', modoMira);
+}
+
+btnBola.addEventListener('click', () => {
+    if (!podeJogarBola()) return mostrarToast('Não dá para jogar bola de neve aqui!');
+    alternarMira();
+});
+
+// Botão direito do mouse joga direto, sem precisar ligar a mira
+jogoContainer.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    jogarBola(e);
+});
+
+// B liga/desliga a mira, Esc desliga
+document.addEventListener('keydown', (e) => {
+    if (!salaAtual || (document.activeElement && document.activeElement.tagName === 'INPUT')) return;
+    if (e.key === 'b' || e.key === 'B') alternarMira();
+    else if (e.key === 'Escape') alternarMira(false);
+});
+
+function jogarBola(e) {
+    const eu = jogadores.get(meuId);
+    if (!eu) return;
+    if (!podeJogarBola()) return mostrarToast('Não dá para jogar bola de neve aqui!');
+    if (estaCongelado(eu)) return mostrarToast('Você está congelado! ❄️');
+    socket.emit('jogarBola', pontoClicado(e));
+}
+
+// Onde estão as patas da capivara AGORA na tela (em %), mesmo no meio de uma caminhada
+function posicaoNaTela(jogador) {
+    const c = jogoContainer.getBoundingClientRect();
+    const r = jogador.sprite.getBoundingClientRect();
+    return {
+        x: ((r.left + r.width / 2 - c.left) / c.width) * 100,
+        y: ((r.bottom - c.top) / c.height) * 100,
+    };
+}
+
+socket.on('bolaJogada', ({ bolaId, id, x, y, duracao, direcao }) => {
+    const atirador = jogadores.get(id);
+    if (!atirador) return;
+
+    virar(atirador, direcao);
+    atirador.el.classList.remove('arremessando');
+    void atirador.el.offsetWidth;
+    atirador.el.classList.add('arremessando');
+    clearTimeout(atirador.timers.arremesso);
+    atirador.timers.arremesso = setTimeout(() => atirador.el.classList.remove('arremessando'), 300);
+
+    // A bola faz um arco; a sombra vai em linha reta pelo chão
+    const inicio = posicaoNaTela(atirador);
+    const c = jogoContainer.getBoundingClientRect();
+    const distanciaPx = Math.hypot(((x - inicio.x) / 100) * c.width, ((y - inicio.y) / 100) * c.height);
+    const arco = Math.min(160, 40 + distanciaPx * 0.3);
+
+    const bola = document.createElement('div');
+    bola.className = 'bola-de-neve';
+    const sombra = document.createElement('div');
+    sombra.className = 'sombra-bola';
+    camadaJogadores.append(sombra, bola);
+
+    const quadrosBola = [];
+    const quadrosSombra = [];
+    for (let i = 0; i <= 20; i++) {
+        const t = i / 20;
+        const px = inicio.x + (x - inicio.x) * t;
+        const py = inicio.y + (y - inicio.y) * t;
+        const altura = ALTURA_MAO_PX * (1 - t) + arco * 4 * t * (1 - t);
+        quadrosBola.push({ left: `${px}%`, top: `calc(${py}% - ${altura}px)` });
+        quadrosSombra.push({ left: `${px}%`, top: `${py}%` });
+    }
+
+    sombra.animate(quadrosSombra, { duration: duracao, fill: 'forwards' });
+    bola.animate(quadrosBola, { duration: duracao, fill: 'forwards' });
+
+    // Timer em vez de "fim da animação": o navegador pausa animações em abas
+    // em segundo plano, e quem está lá também precisa poder ser atingido.
+    setTimeout(() => {
+        const aindaNaSala = bola.isConnected; // se trocou de sala no meio, ignora
+        bola.remove();
+        sombra.remove();
+        if (!aindaNaSala) return;
+        respingo(x, y);
+        conferirSeFuiAtingido(bolaId, id, x, y);
+    }, duracao);
+});
+
+function respingo(x, y) {
+    const el = document.createElement('div');
+    el.className = 'respingo';
+    el.style.left = `${x}%`;
+    el.style.top = `${y}%`;
+    camadaJogadores.appendChild(el);
+    setTimeout(() => el.remove(), 500);
+}
+
+// Cada um confere se a bola caiu na própria capivara (do jeito que está vendo na tela)
+function conferirSeFuiAtingido(bolaId, atiradorId, x, y) {
+    const eu = jogadores.get(meuId);
+    if (!eu || atiradorId === meuId || estaCongelado(eu)) return;
+
+    const c = jogoContainer.getBoundingClientRect();
+    const r = eu.sprite.getBoundingClientRect();
+    const px = c.left + (x / 100) * c.width;
+    const py = c.top + (y / 100) * c.height;
+    // A imagem tem uma margem transparente em cima; a área de acerto é o corpo
+    const acertou = px >= r.left + 5 && px <= r.right - 5 && py >= r.top + r.height * 0.2 && py <= r.bottom + 8;
+    if (acertou) socket.emit('atingido', { bolaId, ...posicaoNaTela(eu) });
+}
+
+function congelar(jogador, duracao, x, y) {
+    // Para exatamente onde está
+    if (x !== undefined) posicionar(jogador, x, y, false);
+    clearTimeout(jogador.timers.andar);
+    jogador.el.classList.remove('andando', 'atingido');
+    void jogador.el.offsetWidth;
+    jogador.el.classList.add('congelado', 'atingido');
+
+    clearTimeout(jogador.timers.congelado);
+    jogador.timers.congelado = setTimeout(() => jogador.el.classList.remove('congelado', 'atingido'), duracao);
+}
+
+socket.on('congelado', ({ id, x, y, duracao, porId, porNick }) => {
+    const jogador = jogadores.get(id);
+    if (!jogador) return;
+    congelar(jogador, duracao, x, y);
+
+    if (id === meuId) {
+        marcadorDestino.classList.remove('visivel');
+        mostrarToast(`${porNick} te congelou! ❄️`);
+    } else if (porId === meuId) {
+        mostrarToast(`Você acertou ${jogador.dados.nick}! 🎯`);
+    }
 });
 
 // ==========================================
@@ -514,7 +689,8 @@ function executarComando(texto) {
             tipo: 'sistema',
             hora: Date.now(),
             texto: `Comandos: ${Object.keys(EMOJI_EMOTES).map((c) => '/' + c).join(', ')}, /limpar, /portas, /ajuda. ` +
-                'Clique no chão para andar, ande até as saídas para trocar de sala e use Enter para falar.',
+                'Clique no chão para andar, ande até as saídas para trocar de sala e use Enter para falar. ' +
+                'Bola de neve: botão direito do mouse, ou ❄️ / tecla B para mirar.',
         });
         abrirPainel('chat');
     } else {

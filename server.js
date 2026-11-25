@@ -20,15 +20,18 @@ const MAX_NICK = 35;
 const MAX_MENSAGEM = 60;
 const HISTORICO_POR_SALA = 30;
 const INTERVALO_MIN_CHAT_MS = 700; // anti-spam: 1 mensagem a cada 0,7s
+const TEMPO_CONGELADO_MS = 3000;   // quanto tempo fica congelado ao levar uma bola de neve
+const RECARGA_BOLA_MS = 800;       // intervalo mínimo entre duas bolas do mesmo jogador
 const EMOTES = ['mortal', 'acenar', 'dancar', 'pular', 'coracao', 'risada', 'dormir'];
 
 // Salas disponíveis. Posições são em % da tela, no ponto das patas da capivara.
-// minY = até onde a capivara pode subir; spawn = onde ela aparece ao chegar pela barra de salas.
+// minY = até onde a capivara pode subir; spawn = onde ela aparece ao chegar pela barra de salas;
+// bolaDeNeve = se dá para jogar bola de neve na sala.
 const SALAS = {
-    centro:    { id: 'centro',    nome: 'Centro',    minY: 12, spawn: { x: 50, y: 75 } },
-    parque:    { id: 'parque',    nome: 'Parque',    minY: 12, spawn: { x: 50, y: 75 } },
-    praia:     { id: 'praia',     nome: 'Praia',     minY: 12, spawn: { x: 50, y: 75 } },
-    cafeteria: { id: 'cafeteria', nome: 'Cafeteria', minY: 12, spawn: { x: 50, y: 75 } },
+    centro:    { id: 'centro',    nome: 'Centro',    minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: true },
+    parque:    { id: 'parque',    nome: 'Parque',    minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: true },
+    praia:     { id: 'praia',     nome: 'Praia',     minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: true },
+    cafeteria: { id: 'cafeteria', nome: 'Cafeteria', minY: 12, spawn: { x: 50, y: 75 }, bolaDeNeve: false },
 };
 const SALA_INICIAL = 'centro';
 
@@ -36,6 +39,8 @@ const SALA_INICIAL = 'centro';
 // ESTADO DO SERVIDOR
 // ==========================================
 const jogadores = new Map(); // socket.id -> jogador
+const bolas = new Map(); // bolaId -> bola de neve no ar (ou que acabou de cair)
+let proximaBolaId = 1;
 const historico = Object.fromEntries(Object.keys(SALAS).map((id) => [id, []]));
 
 function limitar(valor, min, max) {
@@ -95,8 +100,15 @@ function enviarContagemSalas() {
     io.emit('contagemSalas', { contagem: contagemSalas(), total: jogadores.size });
 }
 
+function estaCongelado(j) {
+    return j.congeladoAte > Date.now();
+}
+
 function publico(j) {
-    return { id: j.id, nick: j.nick, cor: j.cor, x: j.x, y: j.y, direcao: j.direcao };
+    return {
+        id: j.id, nick: j.nick, cor: j.cor, x: j.x, y: j.y, direcao: j.direcao,
+        congelado: Math.max(0, j.congeladoAte - Date.now()), // ms que ainda faltam
+    };
 }
 
 function registrarNoHistorico(salaId, item) {
@@ -163,6 +175,8 @@ io.on('connection', (socket) => {
             x: 50,
             y: 70,
             ultimoChat: 0,
+            ultimaBola: 0,
+            congeladoAte: 0,
         };
         jogadores.set(socket.id, jogador);
 
@@ -174,7 +188,7 @@ io.on('connection', (socket) => {
 
     socket.on('mover', (dados) => {
         const jogador = jogadores.get(socket.id);
-        if (!jogador) return;
+        if (!jogador || estaCongelado(jogador)) return;
 
         const sala = SALAS[jogador.sala];
         const x = limitar(dados?.x, 2, 98);
@@ -213,7 +227,7 @@ io.on('connection', (socket) => {
 
     socket.on('emote', (nome) => {
         const jogador = jogadores.get(socket.id);
-        if (!jogador || !EMOTES.includes(nome)) return;
+        if (!jogador || !EMOTES.includes(nome) || estaCongelado(jogador)) return;
         io.to(jogador.sala).emit('emote', { id: jogador.id, emote: nome });
     });
 
@@ -230,11 +244,65 @@ io.on('connection', (socket) => {
         const salaId = dados?.sala;
         if (typeof responder !== 'function') return;
         if (!jogador || !SALAS[salaId] || salaId === jogador.sala) return responder({ ok: false });
+        if (estaCongelado(jogador)) return responder({ ok: false, erro: 'Você está congelado! ❄️' });
 
         tirarDaSala(socket, jogador, `${jogador.nick} foi para ${SALAS[salaId].nome}`);
         const estado = colocarNaSala(socket, jogador, salaId, dados.posicao);
         responder({ ok: true, eu: publico(jogador), ...estado });
         enviarContagemSalas();
+    });
+
+    // ==========================================
+    // BOLA DE NEVE
+    // ==========================================
+    socket.on('jogarBola', (alvo) => {
+        const jogador = jogadores.get(socket.id);
+        if (!jogador || !SALAS[jogador.sala].bolaDeNeve || estaCongelado(jogador)) return;
+
+        const agora = Date.now();
+        if (agora - jogador.ultimaBola < RECARGA_BOLA_MS) return;
+        jogador.ultimaBola = agora;
+
+        const x = limitar(alvo?.x, 0, 100);
+        const y = limitar(alvo?.y, 0, 100);
+        if (x !== jogador.x) jogador.direcao = x > jogador.x ? 1 : -1;
+
+        // Quanto mais longe, mais tempo no ar
+        const duracao = Math.round(limitar(250 + Math.hypot(x - jogador.x, y - jogador.y) * 9, 350, 1100));
+        const bolaId = proximaBolaId++;
+        bolas.set(bolaId, { id: bolaId, de: jogador.id, sala: jogador.sala, x, y, caiEm: agora + duracao, atingidos: new Set() });
+        setTimeout(() => bolas.delete(bolaId), duracao + 1500);
+
+        io.to(jogador.sala).emit('bolaJogada', { bolaId, id: jogador.id, x, y, duracao, direcao: jogador.direcao });
+    });
+
+    // Quem foi atingido avisa (cada um confere a bola caindo em cima da própria capivara,
+    // do jeito que está vendo na tela). O servidor valida e congela.
+    socket.on('atingido', (dados) => {
+        const jogador = jogadores.get(socket.id);
+        const bola = bolas.get(Number(dados?.bolaId));
+        if (!jogador || !bola) return;
+        if (bola.sala !== jogador.sala || bola.de === jogador.id || bola.atingidos.has(jogador.id)) return;
+        if (Date.now() < bola.caiEm - 250 || estaCongelado(jogador)) return;
+
+        // A posição informada precisa estar perto de onde a bola caiu
+        const x = limitar(dados.x, 2, 98);
+        const y = limitar(dados.y, SALAS[jogador.sala].minY, 99);
+        if (Math.hypot(x - bola.x, y - bola.y) > 30) return;
+
+        bola.atingidos.add(jogador.id);
+        jogador.x = x;
+        jogador.y = y;
+        jogador.congeladoAte = Date.now() + TEMPO_CONGELADO_MS;
+
+        const atirador = jogadores.get(bola.de);
+        io.to(jogador.sala).emit('congelado', {
+            id: jogador.id,
+            x, y,
+            duracao: TEMPO_CONGELADO_MS,
+            porId: bola.de,
+            porNick: atirador ? atirador.nick : 'alguém',
+        });
     });
 
     socket.on('disconnect', () => {

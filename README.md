@@ -23,6 +23,9 @@ A porta pode ser trocada com a variável de ambiente `PORT`.
 - **Balão de fala** em cima da cabeça (15 s) e indicador de **"digitando..."**.
 - **Histórico do chat** com horário, entradas/saídas e as últimas 30 mensagens de cada sala para quem chega.
 - **Lista de quem está online** na sala.
+- **Guerra de bolas de neve** ❄️: botão direito do mouse joga uma bola (ou ❄️ / tecla `B` para entrar no modo mira).
+  Quem for atingido fica **congelado por 3 segundos** dentro de um bloco de gelo, sem poder andar nem jogar.
+  Funciona em todas as salas menos na Cafeteria.
 - **Emotes**: 🔄 mortal, 👋 acenar, 💃 dançar, ⬆️ pular, ❤️ coração, 😂 risada, 💤 dormir (pelos botões ou digitando `/mortal`, `/dancar`...).
 - **Cor da capivara** personalizável no login e durante o jogo.
 - **Comandos de chat**: `/ajuda`, `/limpar`, `/portas` (mostra as áreas das portas, útil para ajustar as coordenadas) e os emotes.

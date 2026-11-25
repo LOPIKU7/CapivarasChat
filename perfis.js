@@ -7,6 +7,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const loja = require('./loja');
 
 const ARQUIVO = process.env.ARQUIVO_PERFIS || path.join(__dirname, 'data', 'perfis.json');
 const ATRASO_SALVAR_MS = 2000;
@@ -23,14 +24,20 @@ try {
 }
 
 function perfilVazio(nick) {
-    return { nick, moedas: 0, acertos: 0, peixes: 0, pedidos: 0, quiz: 0, recordeGarcom: 0 };
+    return {
+        nick, moedas: 0, acertos: 0, peixes: 0, pedidos: 0, quiz: 0, recordeGarcom: 0,
+        itens: [],                 // cosméticos comprados (ids da loja)
+        visual: loja.visualVazio(), // cosmético equipado em cada slot
+    };
 }
 
 function obter(nick) {
     const chave = nick.toLowerCase();
     if (!perfis[chave]) perfis[chave] = perfilVazio(nick);
     // Completa campos novos em perfis antigos
-    perfis[chave] = { ...perfilVazio(nick), ...perfis[chave], nick };
+    const vazio = perfilVazio(nick);
+    perfis[chave] = { ...vazio, ...perfis[chave], nick };
+    perfis[chave].visual = { ...vazio.visual, ...perfis[chave].visual };
     return perfis[chave];
 }
 

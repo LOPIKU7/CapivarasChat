@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const perfis = require('./perfis');
+const loja = require('./loja');
 const criarPescaria = require('./minigames/pescaria');
 const criarGarcom = require('./minigames/garcom');
 const criarQuiz = require('./minigames/quiz');
@@ -118,12 +119,13 @@ function publico(j) {
         congelado: Math.max(0, j.congeladoAte - Date.now()), // ms que ainda faltam
         pescando: pescaria.estaPescando(j),
         atividade: garcom.estaJogando(j) ? '🍽️' : null,
+        visual: j.perfil.visual,
     };
 }
 
 function perfilPublico(p) {
-    const { nick, moedas, acertos, peixes, pedidos, quiz, recordeGarcom } = p;
-    return { nick, moedas, acertos, peixes, pedidos, quiz, recordeGarcom };
+    const { nick, moedas, acertos, peixes, pedidos, quiz, recordeGarcom, itens, visual } = p;
+    return { nick, moedas, acertos, peixes, pedidos, quiz, recordeGarcom, itens, visual };
 }
 
 /**
@@ -226,6 +228,54 @@ io.on('connection', (socket) => {
     garcom.registrar(socket);
     quiz.registrar(socket);
 
+    // ==========================================
+    // LOJA DE COSMÉTICOS
+    // ==========================================
+    function avisarVisual(jogador) {
+        io.to(jogador.sala).emit('jogadorVisual', { id: jogador.id, visual: jogador.perfil.visual });
+        socket.emit('perfil', perfilPublico(jogador.perfil));
+        perfis.salvar();
+    }
+
+    socket.on('comprar', (itemId, responder) => {
+        const jogador = jogadores.get(socket.id);
+        const item = loja.item(itemId);
+        if (typeof responder !== 'function' || !jogador) return;
+        if (!item) return responder({ ok: false, erro: 'Esse item não existe.' });
+
+        const perfil = jogador.perfil;
+        if (perfil.itens.includes(item.id)) return responder({ ok: false, erro: 'Você já tem esse item!' });
+        if (perfil.moedas < item.preco) {
+            return responder({ ok: false, erro: `Faltam ${item.preco - perfil.moedas} 💰 para comprar ${item.nome}.` });
+        }
+
+        perfil.moedas -= item.preco;
+        perfil.itens.push(item.id);
+        perfil.visual[item.slot] = item.id; // já sai usando
+        avisarVisual(jogador);
+        responder({ ok: true });
+    });
+
+    // dados = { slot, itemId } (itemId null tira o item do slot)
+    socket.on('equipar', (dados, responder) => {
+        const jogador = jogadores.get(socket.id);
+        if (typeof responder !== 'function' || !jogador) return;
+        const slot = dados?.slot;
+        if (!loja.SLOTS.some((s) => s.id === slot)) return responder({ ok: false });
+
+        const itemId = dados.itemId ?? null;
+        if (itemId !== null) {
+            const item = loja.item(itemId);
+            if (!item || item.slot !== slot || !jogador.perfil.itens.includes(itemId)) {
+                return responder({ ok: false, erro: 'Você não tem esse item.' });
+            }
+        }
+
+        jogador.perfil.visual[slot] = itemId;
+        avisarVisual(jogador);
+        responder({ ok: true });
+    });
+
     socket.on('pedirRanking', (responder) => {
         const jogador = jogadores.get(socket.id);
         if (typeof responder !== 'function' || !jogador) return;
@@ -262,7 +312,9 @@ io.on('connection', (socket) => {
         const estado = colocarNaSala(socket, jogador, salaId, dados?.posicao);
         responder({
             ok: true, eu: publico(jogador), salas: Object.values(SALAS),
-            perfil: perfilPublico(jogador.perfil), ...estado,
+            perfil: perfilPublico(jogador.perfil),
+            loja: { slots: loja.SLOTS, catalogo: loja.CATALOGO },
+            ...estado,
         });
         enviarContagemSalas();
         console.log(`${nick} entrou em ${salaId}`);

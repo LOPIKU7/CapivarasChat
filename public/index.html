@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CapivarasChat</title>
     <link rel="icon" href="capivara.png">
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 
@@ -44,6 +44,7 @@
 
     <!-- Moedas (clique abre o ranking) -->
     <button id="hud-moedas" class="hud" title="Suas moedas (clique para ver o ranking)">💰 <span id="qtd-moedas">0</span></button>
+    <button id="btn-loja" class="hud" title="Loja de cosméticos">🛍️ Loja</button>
 
     <!-- Pergunta do quiz (Centro) -->
     <div id="quiz-banner" class="hud" hidden>
@@ -90,6 +91,27 @@
         <input type="text" id="chat-input" maxlength="60" placeholder="Fale algo... (Enter para enviar, /ajuda)" autocomplete="off">
     </div>
 
+    <!-- Loja de cosméticos -->
+    <div id="loja" hidden>
+        <div class="loja-caixa">
+            <button id="loja-fechar" title="Fechar (Esc)">✕</button>
+            <div class="loja-topo">
+                <strong>🛍️ Loja de Cosméticos</strong>
+                <span id="loja-saldo">💰 0</span>
+            </div>
+            <div class="loja-corpo">
+                <div class="loja-provador">
+                    <div id="loja-preview"></div>
+                    <p id="loja-dica"></p>
+                </div>
+                <div class="loja-itens-area">
+                    <div id="loja-abas"></div>
+                    <div id="loja-itens"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Minigame do garçom (Cafeteria) -->
     <div id="garcom" hidden>
         <div class="garcom-caixa">
@@ -131,6 +153,6 @@
     <div id="status-conexao" hidden>Reconectando...</div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js?v=6"></script>
+    <script src="script.js?v=7"></script>
 </body>
 </html>

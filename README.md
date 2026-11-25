@@ -40,11 +40,19 @@ Todos dão **moedas 💰**, que aparecem no canto da tela. Clicando nelas abre o
 - **Quiz** 🧠 (Centro): de tempos em tempos aparece uma pergunta. Quem responder certo primeiro no chat ganha +10 💰.
   Também dá para chamar uma pergunta com o botão **Chamar quiz** ou `/quiz`.
 
+### Loja de cosméticos 🛍️
+
+Clique em **🛍️ Loja** (ou digite `/loja`) para gastar as moedas em cosméticos para a sua capivara:
+chapéus 🎩👑, óculos 🕶️, coisas no pescoço 🧣🏅, extras 🎈🛹 e efeitos com partículas ✨🔥.
+Passe o mouse num item para provar antes de comprar; a compra pede confirmação (dois cliques).
+Todo mundo na sala vê o que você está usando, e os itens comprados ficam salvos no seu nick.
+Para criar itens novos, é só adicionar no `loja.js` (emoji, preço e posição na capivara).
+
 ### Outras funcionalidades
 
 - **Emotes**: 🔄 mortal, 👋 acenar, 💃 dançar, ⬆️ pular, ❤️ coração, 😂 risada, 💤 dormir (pelos botões ou digitando `/mortal`, `/dancar`...).
 - **Cor da capivara** personalizável no login e durante o jogo.
-- **Comandos de chat**: `/ajuda`, `/quiz`, `/ranking`, `/limpar`, `/portas` (mostra as áreas das portas, útil para ajustar as coordenadas) e os emotes.
+- **Comandos de chat**: `/ajuda`, `/loja`, `/quiz`, `/ranking`, `/limpar`, `/portas` (mostra as áreas das portas, útil para ajustar as coordenadas) e os emotes.
 - Nick, cor e última sala ficam salvos no navegador.
 - Reconexão automática se a conexão cair.
 - Funciona no celular (toque para andar).
@@ -60,7 +68,8 @@ Todos dão **moedas 💰**, que aparecem no canto da tela. Clicando nelas abre o
 
 ```
 server.js          # servidor Express + Socket.IO (salas, jogadores, chat)
-perfis.js          # moedas e estatísticas por nick (salvos em data/perfis.json)
+perfis.js          # moedas, estatísticas e cosméticos por nick (salvos em data/perfis.json)
+loja.js            # catálogo da loja de cosméticos
 minigames/
   pescaria.js      # pescaria da Praia (tempo e sorteio dos peixes no servidor)
   garcom.js        # garçom da Cafeteria

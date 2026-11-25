@@ -179,6 +179,7 @@ function entrarNoJogo() {
         telaLogin.style.display = 'none';
         document.body.classList.add('em-jogo');
         inputCorJogo.value = dados.cor;
+        configurarLoja(resposta.loja);
         atualizarPerfil(resposta.perfil);
         // O painel começa fechado para não tapar as saídas das salas,
         // a não ser que a pessoa tenha deixado aberto da última vez (e não esteja no celular)
@@ -349,8 +350,9 @@ function adicionarJogador(dados) {
     const emote = document.createElement('div');
     emote.className = 'emote-flutuante';
 
-    const sprite = document.createElement('div');
-    sprite.className = 'capivara-sprite';
+    // Corpo = capivara + cosméticos da loja
+    const partes = criarCorpo();
+    const { sprite } = partes;
 
     const nome = document.createElement('div');
     nome.className = 'nome-jogador';
@@ -369,13 +371,14 @@ function adicionarJogador(dados) {
     atividade.className = 'icone-atividade';
     atividade.textContent = dados.atividade || '';
 
-    el.append(balao, digitando, emote, sprite, gelo, vara, boia, atividade, nome);
+    el.append(balao, digitando, emote, partes.corpo, gelo, vara, boia, atividade, nome);
     camadaJogadores.appendChild(el);
 
-    const jogador = { dados: { ...dados }, el, sprite, balao, digitando, emote, atividade, timers: {} };
+    const jogador = { dados: { ...dados }, el, sprite, partes, balao, digitando, emote, atividade, timers: {} };
     jogadores.set(dados.id, jogador);
 
     aplicarCor(sprite, dados.cor);
+    desenharVisual(partes, dados.visual);
     posicionar(jogador, dados.x, dados.y, false);
     virar(jogador, dados.direcao);
     if (dados.congelado > 0) congelar(jogador, dados.congelado);
@@ -767,6 +770,7 @@ function atualizarPerfil(perfil) {
         hudMoedas.classList.add('ganhou');
     }
     if (!painelRanking.hidden) pedirRanking();
+    if (!lojaEl.hidden) renderizarLoja();
 }
 
 socket.on('perfil', atualizarPerfil);
@@ -1067,6 +1071,211 @@ window.addEventListener('keydown', (e) => {
 }, true);
 
 // ==========================================
+// LOJA DE COSMÉTICOS
+// ==========================================
+const lojaEl = $('loja');
+const lojaAbas = $('loja-abas');
+const lojaItens = $('loja-itens');
+const lojaSaldo = $('loja-saldo');
+const lojaPreview = $('loja-preview');
+const lojaDica = $('loja-dica');
+const DICA_LOJA = 'Passe o mouse num item para provar 👀';
+
+let slotsLoja = [];
+let catalogoLoja = new Map();
+let slotLojaAtual = 'cabeca';
+let itemConfirmando = null;
+let timerConfirmar;
+
+// O catálogo vem do servidor (loja.js) quando a pessoa entra no jogo
+function configurarLoja(dados) {
+    if (!dados) return;
+    slotsLoja = dados.slots;
+    catalogoLoja = new Map(dados.catalogo.map((item) => [item.id, item]));
+}
+
+function itemDaLoja(id) {
+    return id ? catalogoLoja.get(id) || null : null;
+}
+
+// Capivara + camadas de cosméticos (usado nos jogadores e no provador da loja)
+function criarCorpo() {
+    const corpo = document.createElement('div');
+    corpo.className = 'corpo';
+    const cosmeticosAtras = document.createElement('div');
+    cosmeticosAtras.className = 'cosmeticos';
+    const sprite = document.createElement('div');
+    sprite.className = 'capivara-sprite';
+    const cosmeticos = document.createElement('div');
+    cosmeticos.className = 'cosmeticos';
+    corpo.append(cosmeticosAtras, sprite, cosmeticos);
+    return { corpo, sprite, cosmeticos, cosmeticosAtras };
+}
+
+function desenharVisual(partes, visual) {
+    partes.cosmeticos.replaceChildren();
+    partes.cosmeticosAtras.replaceChildren();
+    for (const itemId of Object.values(visual || {})) {
+        const item = itemDaLoja(itemId);
+        if (!item) continue;
+
+        if (item.slot === 'efeito') {
+            const efeito = document.createElement('div');
+            efeito.className = 'efeito';
+            for (let i = 0; i < 4; i++) {
+                const particula = document.createElement('span');
+                particula.textContent = item.emoji;
+                efeito.appendChild(particula);
+            }
+            partes.cosmeticos.appendChild(efeito);
+            continue;
+        }
+
+        const el = document.createElement('span');
+        el.className = 'cosmetico';
+        el.textContent = item.emoji;
+        el.style.left = `${item.x}%`;
+        el.style.top = `${item.y}%`;
+        el.style.fontSize = `${item.tam}px`;
+        (item.atras ? partes.cosmeticosAtras : partes.cosmeticos).appendChild(el);
+    }
+}
+
+socket.on('jogadorVisual', ({ id, visual }) => {
+    const jogador = jogadores.get(id);
+    if (!jogador) return;
+    jogador.dados.visual = visual;
+    desenharVisual(jogador.partes, visual);
+});
+
+// Provador da loja
+const provador = criarCorpo();
+lojaPreview.appendChild(provador.corpo);
+
+function desenharProvador(provando) {
+    if (!meuPerfil) return;
+    aplicarCor(provador.sprite, meusDados ? meusDados.cor : 0);
+    const visual = { ...meuPerfil.visual };
+    if (provando) visual[provando.slot] = provando.id;
+    desenharVisual(provador, visual);
+}
+
+function abrirLoja() {
+    if (!meuPerfil) return;
+    itemConfirmando = null;
+    lojaEl.hidden = false;
+    lojaDica.textContent = DICA_LOJA;
+    renderizarLoja();
+}
+
+function fecharLoja() {
+    lojaEl.hidden = true;
+}
+
+function renderizarLoja() {
+    if (!meuPerfil) return;
+    lojaSaldo.textContent = `💰 ${meuPerfil.moedas}`;
+    desenharProvador(null);
+
+    lojaAbas.replaceChildren(...slotsLoja.map((slot) => {
+        const chip = document.createElement('button');
+        chip.className = 'chip' + (slot.id === slotLojaAtual ? ' ativo' : '');
+        chip.textContent = `${slot.icone} ${slot.nome}`;
+        chip.addEventListener('click', () => {
+            slotLojaAtual = slot.id;
+            itemConfirmando = null;
+            renderizarLoja();
+        });
+        return chip;
+    }));
+
+    const equipado = meuPerfil.visual[slotLojaAtual];
+    const itens = [...catalogoLoja.values()]
+        .filter((item) => item.slot === slotLojaAtual)
+        .sort((a, b) => a.preco - b.preco);
+
+    // Primeiro cartão: tirar o item do slot
+    const nenhum = criarCartaoLoja('🚫', 'Nenhum', equipado ? 'Tirar' : '✓ Usando', equipado ? 'comprado' : 'equipado');
+    nenhum.addEventListener('click', () => { if (equipado) equipar(slotLojaAtual, null); });
+
+    lojaItens.replaceChildren(nenhum, ...itens.map((item) => {
+        const temItem = meuPerfil.itens.includes(item.id);
+        let acao, classe;
+        if (equipado === item.id) { acao = '✓ Usando'; classe = 'equipado'; }
+        else if (temItem) { acao = 'Usar'; classe = 'comprado'; }
+        else if (itemConfirmando === item.id) { acao = 'Confirmar?'; classe = 'confirmando'; }
+        else { acao = `💰 ${item.preco}`; classe = meuPerfil.moedas < item.preco ? 'caro' : ''; }
+
+        const cartao = criarCartaoLoja(item.emoji, item.nome, acao, classe);
+        cartao.addEventListener('mouseenter', () => {
+            desenharProvador(item);
+            lojaDica.textContent = temItem ? `${item.nome}` : `${item.nome} · 💰 ${item.preco}`;
+        });
+        cartao.addEventListener('mouseleave', () => {
+            desenharProvador(null);
+            lojaDica.textContent = DICA_LOJA;
+        });
+        cartao.addEventListener('click', () => clicarItem(item));
+        return cartao;
+    }));
+}
+
+function criarCartaoLoja(emoji, nome, acao, classe) {
+    const cartao = document.createElement('button');
+    cartao.className = 'item-loja' + (classe ? ` ${classe}` : '');
+    const elEmoji = document.createElement('span');
+    elEmoji.className = 'emoji';
+    elEmoji.textContent = emoji;
+    const elNome = document.createElement('span');
+    elNome.className = 'nome';
+    elNome.textContent = nome;
+    const elAcao = document.createElement('span');
+    elAcao.className = 'acao';
+    elAcao.textContent = acao;
+    cartao.append(elEmoji, elNome, elAcao);
+    return cartao;
+}
+
+function clicarItem(item) {
+    if (meuPerfil.visual[item.slot] === item.id) return;
+    if (meuPerfil.itens.includes(item.id)) return equipar(item.slot, item.id);
+
+    if (meuPerfil.moedas < item.preco) {
+        mostrarToast(`Faltam ${item.preco - meuPerfil.moedas} 💰 para comprar ${item.nome}. Jogue os minigames!`);
+        return;
+    }
+    // Compra em dois cliques, para não gastar moedas sem querer
+    if (itemConfirmando !== item.id) {
+        itemConfirmando = item.id;
+        clearTimeout(timerConfirmar);
+        timerConfirmar = setTimeout(() => { itemConfirmando = null; if (!lojaEl.hidden) renderizarLoja(); }, 3000);
+        renderizarLoja();
+        return;
+    }
+    itemConfirmando = null;
+    socket.emit('comprar', item.id, (resposta) => {
+        if (!resposta.ok) return mostrarToast(resposta.erro || 'Não foi possível comprar.');
+        mostrarToast(`Você comprou ${item.emoji} ${item.nome}! 🎉`);
+    });
+}
+
+function equipar(slot, itemId) {
+    socket.emit('equipar', { slot, itemId }, (resposta) => {
+        if (!resposta.ok && resposta.erro) mostrarToast(resposta.erro);
+    });
+}
+
+$('btn-loja').addEventListener('click', abrirLoja);
+$('loja-fechar').addEventListener('click', fecharLoja);
+lojaEl.addEventListener('click', (e) => { if (e.target === lojaEl) fecharLoja(); });
+window.addEventListener('keydown', (e) => {
+    if (lojaEl.hidden || e.key !== 'Escape') return;
+    fecharLoja();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+}, true);
+
+// ==========================================
 // 5. CHAT (BALÃO + HISTÓRICO)
 // ==========================================
 let digitandoAtivo = false;
@@ -1126,6 +1335,8 @@ function executarComando(texto) {
         mostrarToast(ligado ? 'Mostrando as áreas das portas' : 'Áreas das portas escondidas');
     } else if (comando === 'quiz') {
         chamarQuiz();
+    } else if (comando === 'loja') {
+        abrirLoja();
     } else if (comando === 'ranking') {
         abrirPainel('ranking');
     } else if (comando === 'limpar') {
@@ -1134,11 +1345,11 @@ function executarComando(texto) {
         adicionarMensagemLog({
             tipo: 'sistema',
             hora: Date.now(),
-            texto: `Comandos: ${Object.keys(EMOJI_EMOTES).map((c) => '/' + c).join(', ')}, /quiz, /ranking, /limpar, /portas, /ajuda. ` +
+            texto: `Comandos: ${Object.keys(EMOJI_EMOTES).map((c) => '/' + c).join(', ')}, /loja, /quiz, /ranking, /limpar, /portas, /ajuda. ` +
                 'Clique no chão para andar, ande até as saídas para trocar de sala e use Enter para falar. ' +
                 'Bola de neve: botão direito do mouse, ou ❄️ / tecla B para mirar. ' +
                 'Minigames: 🎣 pescaria na Praia, ☕ garçom na Cafeteria, 🧠 quiz no Centro e guerra de bolas de neve. ' +
-                'Tudo dá moedas 💰: veja o ranking clicando nas suas moedas.',
+                'Tudo dá moedas 💰: veja o ranking clicando nas suas moedas e gaste na 🛍️ Loja de cosméticos.',
         });
         abrirPainel('chat');
     } else {
@@ -1323,6 +1534,7 @@ socket.on('connect', () => {
         }
         statusConexao.hidden = true;
         meusDados.nick = resposta.eu.nick;
+        configurarLoja(resposta.loja);
         atualizarPerfil(resposta.perfil);
         carregarSala(resposta);
         mostrarToast('Reconectado!');

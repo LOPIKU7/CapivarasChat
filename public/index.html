@@ -4,36 +4,77 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CapivarasChat</title>
-    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="icon" href="capivara.png">
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 
+    <!-- ============ TELA DE LOGIN ============ -->
     <div id="tela-login">
         <div class="login-caixa">
             <h1>CapivarasChat 🐾</h1>
-            <input type="text" id="nickname-input" value="Luke" placeholder="Digite seu Nickname" maxlength="35" autocomplete="off">
+
+            <div id="preview-capivara" class="capivara-sprite"></div>
+
+            <input type="text" id="nickname-input" placeholder="Digite seu Nickname" maxlength="35" autocomplete="off">
+
+            <label class="campo-cor" for="cor-input">
+                Cor da capivara
+                <input type="range" id="cor-input" min="0" max="360" value="0">
+            </label>
+
+            <select id="sala-input" aria-label="Sala inicial"></select>
+
             <button id="btn-entrar">Entrar na Cidade</button>
+            <p id="erro-login" class="erro"></p>
+            <p id="online-login" class="online-login"></p>
         </div>
     </div>
 
-    <div id="jogo-container">
+    <!-- ============ JOGO ============ -->
+    <div id="jogo-container" data-sala="centro">
         <div id="cenario-fundo"></div>
-        <div id="portas-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; pointer-events: none;"></div>
-        <div id="jogador" class="capivara-sprite">
-            <div id="balao-chat" class="balao"></div>
-            <div id="nome-jogador"></div>
-        </div>
+        <div id="portas-container"></div>
+        <div id="marcador-destino"></div>
+        <div id="camada-jogadores"></div>
     </div>
 
-    <div id="chat-ui">
-        <input type="text" id="chat-input" maxlength="30" placeholder="Fale algo (Máx 30 letras)..." autocomplete="off">
+    <!-- Barra superior: salas -->
+    <nav id="barra-salas" class="hud"></nav>
+
+    <!-- Painel lateral: chat e online -->
+    <aside id="painel" class="hud">
+        <div class="painel-abas">
+            <button class="aba ativa" data-aba="chat">💬 Chat</button>
+            <button class="aba" data-aba="online">👥 Online <span id="contador-online">0</span></button>
+            <button id="btn-fechar-painel" title="Esconder painel">✕</button>
+        </div>
+        <ul id="lista-mensagens" class="painel-conteudo"></ul>
+        <ul id="lista-online" class="painel-conteudo" hidden></ul>
+    </aside>
+    <button id="btn-abrir-painel" class="hud" title="Mostrar chat" hidden>💬<span id="badge-nao-lidas" hidden></span></button>
+
+    <!-- Barra inferior: emotes + chat -->
+    <div id="chat-ui" class="hud">
+        <div id="emotes">
+            <button data-emote="mortal" title="Dar mortal (/mortal)">🔄</button>
+            <button data-emote="acenar" title="Acenar (/acenar)">👋</button>
+            <button data-emote="dancar" title="Dançar (/dancar)">💃</button>
+            <button data-emote="pular" title="Pular (/pular)">⬆️</button>
+            <button data-emote="coracao" title="Coração (/coracao)">❤️</button>
+            <button data-emote="risada" title="Risada (/risada)">😂</button>
+            <button data-emote="dormir" title="Dormir (/dormir)">💤</button>
+            <label class="cor-jogo" title="Mudar cor">🎨
+                <input type="range" id="cor-jogo-input" min="0" max="360" value="0">
+            </label>
+        </div>
+        <input type="text" id="chat-input" maxlength="60" placeholder="Fale algo... (Enter para enviar, /ajuda)" autocomplete="off">
     </div>
-    
-    <div id="controles-extras" style="display: none; position: absolute; right: 20px; bottom: 80px; z-index: 100;">
-        <button id="btn-mortal" style="padding: 10px 20px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; border: 2px solid #333; background: #FFD700;">🔄 Dar Mortal</button>
-    </div>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+    <div id="status-conexao" hidden>Reconectando...</div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js"></script>
+    <script src="script.js?v=3"></script>
 </body>
 </html>

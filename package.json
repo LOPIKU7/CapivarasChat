@@ -1,11 +1,11 @@
 {
   "name": "capivaraschat",
   "version": "1.0.0",
-  "description": "",
+  "description": "Chat multiplayer de capivaras em tempo real (Express + Socket.IO)",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js"
   },
   "keywords": [],
   "author": "",
@@ -14,5 +14,8 @@
   "dependencies": {
     "express": "^5.2.1",
     "socket.io": "^4.8.3"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

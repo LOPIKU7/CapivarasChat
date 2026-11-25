@@ -3,171 +3,251 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: Arial, sans-serif;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+:root {
+    --marrom: #8B4513;
+    --marrom-claro: #A0522D;
+    --creme: #FFF8EE;
+    --sombra: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 body {
     background-color: #222;
     overflow: hidden;
+    user-select: none;
+}
+
+button {
+    cursor: pointer;
+    font: inherit;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+/* --- SPRITE DA CAPIVARA (usado no login e no jogo) --- */
+.capivara-sprite {
+    width: 100px;
+    height: 100px;
+    background-image: url('./capivara.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center bottom;
 }
 
 /* --- TELA DE LOGIN --- */
 #tela-login {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.9);
+    inset: 0;
+    background: radial-gradient(circle at 50% 30%, #5a3a1c, #1d130a);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000; /* Fica por cima de tudo */
+    z-index: 1000;
 }
 
 .login-caixa {
-    background-color: #fff;
+    background-color: var(--creme);
     padding: 30px;
-    border-radius: 15px;
+    border-radius: 18px;
     text-align: center;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    width: min(340px, 90vw);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
 }
 
 .login-caixa h1 {
-    margin-bottom: 20px;
-    color: #8B4513; /* Marrom capivara */
+    color: var(--marrom);
+    font-size: 28px;
 }
 
-#nickname-input {
+#preview-capivara {
+    width: 120px;
+    height: 120px;
+    animation: respirar 2.5s ease-in-out infinite;
+}
+
+#nickname-input,
+#sala-input {
     padding: 10px;
-    width: 80%;
-    margin-bottom: 15px;
-    border: 2px solid #ccc;
+    width: 100%;
+    border: 2px solid #d9c7b0;
     border-radius: 8px;
     font-size: 16px;
     text-align: center;
     outline: none;
+    background: white;
+}
+
+#nickname-input:focus,
+#sala-input:focus {
+    border-color: var(--marrom);
+}
+
+.campo-cor {
+    width: 100%;
+    font-size: 13px;
+    color: #6b4a2b;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+input[type="range"] {
+    width: 100%;
+    accent-color: var(--marrom);
+    cursor: pointer;
 }
 
 #btn-entrar {
-    padding: 10px 20px;
-    background-color: #8B4513;
+    padding: 11px 20px;
+    width: 100%;
+    background-color: var(--marrom);
     color: white;
     border: none;
     border-radius: 8px;
-    cursor: pointer;
     font-size: 16px;
     font-weight: bold;
 }
 
-/* --- Estilos base da Capivara --- */
-.capivara-sprite {
-    width: 100px;
-    height: 100px;
-    background-image: url('capivara.png'); /* 👈 A imagem original VOLTA para cá! */
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    position: absolute;
-    z-index: 10;
-    pointer-events: none;
-    /* transition: top 0.8s, left 0.8s; <- Continua fora, o JS que manda nisso agora! */
-}
-
-/* --- Classes de Direção (Girando a imagem original) --- */
-.virado-esquerda {
-    transform: scaleX(1); /* Posição normal */
-}
-
-.virado-direita {
-    transform: scaleX(-1); /* Espelha a capivara horizontalmente */
-}
-
-/* O Truque Ninja: "Desespelha" o texto para não ficar de trás pra frente! */
-.virado-direita .balao, 
-.virado-direita #nome-jogador {
-    transform: scaleX(-1); 
-}
-
-#jogador {
-    display: none; 
-}
-
-/* --- ANIMAÇÃO DO MORTAL --- */
-@keyframes mortal {
-    0% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-80px) rotate(180deg); } /* Sobe 80px e fica de cabeça para baixo */
-    100% { transform: translateY(0) rotate(360deg); } /* Volta pro chão em pé */
-}
-
-.animacao-mortal {
-    animation: mortal 0.7s ease-in-out;
-}
-
-/* --- CAIXAS DE COLISÃO (HITBOXES) MODO NUCLEAR --- */
-#portas-container {
-    position: absolute;
-    top: 0; 
-    left: 0;
-    width: 100%; 
-    height: 100%;
-    pointer-events: none;
-    z-index: 99; /* 👈 Aumentei pra 99 pra garantir que passe por cima de TODO o mapa */
-}
-
-.hitbox {
-    position: absolute;
-    border: 4px dashed #00FF00 !important; /* 👈 Verde neon super forte */
-    background-color: rgba(255, 0, 0, 0.5) !important; /* Vermelho transparente */
-    pointer-events: none;
-    z-index: 100; /* 👈 Nenhuma imagem de fundo vai cobrir isso agora! */
-}
-
 #btn-entrar:hover {
-    background-color: #A0522D;
+    background-color: var(--marrom-claro);
 }
 
-/* --- JOGO --- */
+#btn-entrar:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.erro {
+    color: #c0392b;
+    font-size: 13px;
+    min-height: 1em;
+}
+
+.online-login {
+    color: #7a6550;
+    font-size: 12px;
+}
+
+/* --- JOGO / CENÁRIOS --- */
 #jogo-container {
     width: 100vw;
     height: 100vh;
     position: relative;
-    background-color: #87CEEB; /* Cor do céu temporária */
-    /* background-image: url('./centro.png'); */
+    overflow: hidden;
+    cursor: pointer;
+    /* Mantém os z-index dos jogadores/decorações aqui dentro, abaixo do HUD */
+    isolation: isolate;
 }
 
 #cenario-fundo {
-    width: 100%;
-    height: 100%;
     position: absolute;
-    background-image: url('centro.png');
+    inset: 0;
+    background-color: #87CEEB;
     background-size: cover;
     background-position: center;
+}
+
+/* --- PORTAS (áreas que levam para outra sala) --- */
+#portas-container {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.porta {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.porta span {
+    background: rgba(0, 0, 0, 0.45);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 3px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    opacity: 0.75;
+    animation: flutuar 2s ease-in-out infinite;
+}
+
+/* Comando /portas: mostra as áreas exatas (para ajustar as coordenadas) */
+.debug-portas .porta {
+    background-color: rgba(255, 0, 0, 0.35);
+    outline: 3px dashed #00FF00;
+    outline-offset: -3px;
+}
+
+#camada-jogadores {
+    position: absolute;
+    inset: 0;
+}
+
+/* Marcador de onde a capivara vai andar */
+#marcador-destino {
+    position: absolute;
+    width: 36px;
+    height: 14px;
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    opacity: 0;
     z-index: 1;
 }
 
-/* --- JOGADOR (CAPIVARA) --- */
-#jogador {
-    width: 100px;
-    height: 100px;
-    /*background-color: #8B4513; /* Quadrado marrom representando a capivara */
-    background-image: url('./capivara.png');
-    background-size: contain;
-    background-repeat: no-repeat;
-    position: absolute;
-    z-index: 10;
-    transition: top 1s linear, left 1s linear;
-    pointer-events: none;
-    display: none; /* Escondido até fazer login */
+#marcador-destino.visivel {
+    animation: marcador 0.8s ease-out forwards;
 }
 
-#nome-jogador {
+/* --- JOGADORES --- */
+.jogador {
     position: absolute;
-    top: 110%; /* Fica embaixo do personagem */
+    /* O ponto (left, top) é onde ficam as patas da capivara */
+    transform: translate(-50%, -100%);
+    transition-property: left, top;
+    transition-timing-function: linear;
+    pointer-events: none;
+    animation: aparecer 0.3s ease-out;
+}
+
+.jogador.saindo {
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+/* A imagem olha para a esquerda; .virado = olhando para a direita */
+.jogador .capivara-sprite {
+    transition: scale 0.15s;
+}
+
+.jogador .capivara-sprite.virado {
+    scale: -1 1;
+}
+
+.jogador.andando .capivara-sprite {
+    animation: andar 0.35s ease-in-out infinite;
+}
+
+.nome-jogador {
+    position: absolute;
+    top: 100%;
     left: 50%;
     transform: translateX(-50%);
+    margin-top: 2px;
     color: white;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(0, 0, 0, 0.5);
     padding: 2px 6px;
     border-radius: 5px;
     font-size: 12px;
@@ -175,26 +255,37 @@ body {
     white-space: nowrap;
 }
 
-/* --- CHAT EM CIMA DA CABEÇA --- */
+.jogador.eu .nome-jogador {
+    background-color: rgba(139, 69, 19, 0.85);
+}
+
+/* --- BALÃO DE FALA EM CIMA DA CABEÇA --- */
 .balao {
     position: absolute;
-    bottom: 115%; /* Fica acima da cabeça */
+    bottom: 85%;
     left: 50%;
     transform: translateX(-50%);
     background-color: white;
     color: black;
-    padding: 8px 12px;
+    padding: 7px 11px;
     border-radius: 15px;
     font-size: 14px;
     font-weight: bold;
     text-align: center;
-    white-space: nowrap;
+    width: max-content;
+    max-width: 220px;
+    overflow-wrap: anywhere;
     border: 2px solid #ccc;
-    box-shadow: 0px 4px 6px rgba(0,0,0,0.3);
-    display: none; /* Escondido por padrão */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    display: none;
+    user-select: text;
 }
 
-/* Pontinha do balão */
+.balao.visivel {
+    display: block;
+    animation: balao 0.25s ease-out;
+}
+
 .balao::after {
     content: '';
     position: absolute;
@@ -206,24 +297,423 @@ body {
     border-color: white transparent transparent transparent;
 }
 
-/* --- BARRA DE CHAT INFERIOR --- */
+/* Indicador "..." de digitando (fica escondido se já tem balão de fala) */
+.balao-digitando {
+    color: #888;
+    letter-spacing: 2px;
+    padding: 2px 10px 8px;
+}
+
+.balao-digitando.visivel {
+    animation: piscar 1s ease-in-out infinite;
+}
+
+.balao.visivel ~ .balao-digitando {
+    display: none;
+}
+
+/* --- EMOTES --- */
+.emote-flutuante {
+    position: absolute;
+    bottom: 90%;
+    left: 50%;
+    font-size: 30px;
+    opacity: 0;
+    transform: translateX(-50%);
+}
+
+.emote-flutuante.visivel {
+    animation: emote-subir 2.2s ease-out forwards;
+}
+
+.jogador.emote-dormir .emote-flutuante.visivel {
+    animation: emote-subir 2s ease-out 3;
+}
+
+.jogador.emote-mortal .capivara-sprite { animation: mortal 0.7s ease-in-out; }
+.jogador.emote-pular .capivara-sprite { animation: pular 0.5s ease-out 2; }
+.jogador.emote-dancar .capivara-sprite { animation: dancar 0.5s ease-in-out 4; }
+.jogador.emote-acenar .capivara-sprite { animation: acenar 0.4s ease-in-out 4; }
+.jogador.emote-risada .capivara-sprite { animation: risada 0.2s linear 8; }
+.jogador.emote-coracao .capivara-sprite { animation: pular 0.6s ease-out 1; }
+.jogador.emote-dormir .capivara-sprite { animation: respirar 2s ease-in-out 3; opacity: 0.85; }
+
+/* --- HUD (visível só dentro do jogo) --- */
+.hud {
+    display: none;
+}
+
+body.em-jogo .hud {
+    display: flex;
+}
+
+/* Barra de salas */
+#barra-salas {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    gap: 8px;
+    z-index: 100;
+}
+
+.btn-sala {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 20px;
+    background: rgba(255, 248, 238, 0.9);
+    color: var(--marrom);
+    font-weight: bold;
+    font-size: 14px;
+    box-shadow: var(--sombra);
+}
+
+.btn-sala:hover {
+    background: white;
+}
+
+.btn-sala.ativa {
+    background: var(--marrom);
+    color: white;
+}
+
+.btn-sala .qtd {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    padding: 0 7px;
+    font-size: 12px;
+}
+
+/* Painel lateral */
+#painel {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    bottom: 100px;
+    width: 300px;
+    flex-direction: column;
+    background: rgba(255, 248, 238, 0.92);
+    border-radius: 14px;
+    box-shadow: var(--sombra);
+    z-index: 100;
+    overflow: hidden;
+}
+
+.painel-abas {
+    display: flex;
+    border-bottom: 1px solid #e3d3bd;
+}
+
+.aba {
+    flex: 1;
+    padding: 10px 6px;
+    border: none;
+    background: transparent;
+    color: #7a6550;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.aba.ativa {
+    color: var(--marrom);
+    box-shadow: inset 0 -3px 0 var(--marrom);
+}
+
+#contador-online {
+    background: var(--marrom);
+    color: white;
+    border-radius: 10px;
+    padding: 0 6px;
+    font-size: 11px;
+}
+
+#btn-fechar-painel {
+    border: none;
+    background: transparent;
+    color: #7a6550;
+    padding: 0 12px;
+}
+
+.painel-conteudo {
+    list-style: none;
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 10px;
+    font-size: 13px;
+    user-select: text;
+}
+
+.msg {
+    padding: 3px 0;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.msg time {
+    color: #a8927a;
+    font-size: 11px;
+    margin-right: 6px;
+}
+
+.msg-sistema {
+    color: #8a7a68;
+    font-style: italic;
+}
+
+.msg.minha {
+    background: rgba(139, 69, 19, 0.08);
+    border-radius: 6px;
+    padding: 3px 5px;
+}
+
+#lista-online li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 2px;
+    border-bottom: 1px solid #efe3d2;
+}
+
+.bolinha {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+#btn-abrir-painel {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: var(--creme);
+    font-size: 20px;
+    box-shadow: var(--sombra);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+}
+
+#badge-nao-lidas {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 10px;
+    background: #e74c3c;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    line-height: 20px;
+    text-align: center;
+}
+
+/* Barra inferior: emotes + chat */
 #chat-ui {
     position: fixed;
     bottom: 20px;
-    width: 100%;
-    display: flex;
-    justify-content: center;
+    left: 50%;
+    transform: translateX(-50%);
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
     z-index: 100;
-    display: none; /* Escondido até fazer login */
+}
+
+#emotes {
+    display: flex;
+    gap: 6px;
+    background: rgba(255, 248, 238, 0.9);
+    padding: 5px 8px;
+    border-radius: 20px;
+    box-shadow: var(--sombra);
+}
+
+#emotes button {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    font-size: 18px;
+    transition: transform 0.1s, background 0.1s;
+}
+
+#emotes button:hover {
+    background: rgba(139, 69, 19, 0.12);
+    transform: scale(1.15);
+}
+
+.cor-jogo {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-left: 6px;
+    border-left: 1px solid #e3d3bd;
+    font-size: 18px;
+}
+
+.cor-jogo input {
+    width: 80px;
 }
 
 #chat-input {
-    width: 400px;
+    width: min(440px, 90vw);
     padding: 12px;
     border-radius: 20px;
-    border: 2px solid #8B4513;
+    border: 2px solid var(--marrom);
     font-size: 16px;
     outline: none;
     text-align: center;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    box-shadow: var(--sombra);
+}
+
+/* Avisos */
+#toast {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translate(-50%, -20px);
+    background: rgba(30, 20, 10, 0.88);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    z-index: 2000;
+}
+
+#toast.visivel {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+#status-conexao {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    z-index: 1500;
+}
+
+/* --- CELULAR --- */
+@media (max-width: 700px) {
+    #painel {
+        top: auto;
+        left: 10px;
+        right: 10px;
+        bottom: 130px;
+        width: auto;
+        height: 35vh;
+    }
+
+    #barra-salas {
+        top: 10px;
+        gap: 4px;
+    }
+
+    .btn-sala {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    #emotes button {
+        width: 30px;
+        height: 30px;
+        font-size: 16px;
+    }
+
+    .cor-jogo input {
+        width: 50px;
+    }
+
+    #toast {
+        top: 60px;
+    }
+}
+
+/* --- ANIMAÇÕES --- */
+@keyframes respirar {
+    0%, 100% { translate: 0 0; }
+    50% { translate: 0 -3px; }
+}
+
+@keyframes andar {
+    0%, 100% { translate: 0 0; rotate: 0deg; }
+    25% { translate: 0 -4px; rotate: -3deg; }
+    75% { translate: 0 -4px; rotate: 3deg; }
+}
+
+@keyframes mortal {
+    0% { translate: 0 0; rotate: 0deg; }
+    50% { translate: 0 -80px; rotate: 180deg; }
+    100% { translate: 0 0; rotate: 360deg; }
+}
+
+@keyframes pular {
+    0%, 100% { translate: 0 0; }
+    40% { translate: 0 -40px; }
+}
+
+@keyframes dancar {
+    0%, 100% { rotate: 0deg; translate: 0 0; }
+    25% { rotate: -12deg; translate: -6px -6px; }
+    75% { rotate: 12deg; translate: 6px -6px; }
+}
+
+@keyframes acenar {
+    0%, 100% { rotate: 0deg; }
+    50% { rotate: -8deg; }
+}
+
+@keyframes risada {
+    0%, 100% { translate: 0 0; }
+    50% { translate: 0 -3px; }
+}
+
+@keyframes emote-subir {
+    0% { opacity: 0; translate: 0 10px; scale: 0.6; }
+    20% { opacity: 1; translate: 0 0; scale: 1.1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; translate: 0 -40px; scale: 1; }
+}
+
+@keyframes balao {
+    from { opacity: 0; scale: 0.7; }
+    to { opacity: 1; scale: 1; }
+}
+
+@keyframes piscar {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+@keyframes aparecer {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes marcador {
+    0% { opacity: 1; scale: 0.4; }
+    100% { opacity: 0; scale: 1.4; }
+}
+
+
+@keyframes flutuar {
+    0%, 100% { translate: 0 0; }
+    50% { translate: 0 -4px; }
 }
